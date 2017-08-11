@@ -15,8 +15,8 @@
 
 
 ## Models:
- - [1]: **CNN**: Character-level convolutional networks for text classification ([paper](https://arxiv.org/abs/1509.01626), [code]())  
- - [2]: **VDCNN**: Very deep convolutional networks for text classification ([paper](https://arxiv.org/abs/1606.01781), [code]())  
+ - [1]: **CNN**: Character-level convolutional networks for text classification ([paper](https://arxiv.org/abs/1509.01626), [code](https://github.com/ArdalanM/nlp-benchmarks/blob/master/src/VDCNN.py))  
+ - [2]: **VDCNN**: Very deep convolutional networks for text classification ([paper](https://arxiv.org/abs/1606.01781), [code](https://github.com/ArdalanM/nlp-benchmarks/blob/master/src/CNN.py))  
 
 
 ## Experiments:
