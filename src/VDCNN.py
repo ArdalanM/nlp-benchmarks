@@ -108,40 +108,45 @@ class BasicConvResBlock(nn.Module):
 
 class VDCNN(nn.Module):
 
-    def __init__(self, n_classes=2, num_embedding=141, embedding_dim=16,
-                 n_conv_block_64=2,
-                 n_conv_block_128=2,
-                 n_conv_block_256=2,
-                 n_conv_block_512=2,
-                 n_fc_neurons=2048, shortcut=False):
+    def __init__(self, n_classes=2, num_embedding=141, embedding_dim=16, depth=9, n_fc_neurons=2048, shortcut=False):
         super(VDCNN, self).__init__()
 
         layers = []
         fc_layers = []
 
-        self.embed = nn.Embedding(num_embedding, embedding_dim, padding_idx=0, max_norm=None, norm_type=2, scale_grad_by_freq=False, sparse=False)
+        self.embed = nn.Embedding(num_embedding, embedding_dim, padding_idx=0, max_norm=None,
+                                  norm_type=2, scale_grad_by_freq=False, sparse=False)
         layers.append(nn.Conv1d(embedding_dim, 64, kernel_size=3, padding=1))
 
+        if depth == 9:
+            n_conv_block_64, n_conv_block_128, n_conv_block_256, n_conv_block_512 = 1, 1, 1, 1
+        elif depth == 17:
+            n_conv_block_64, n_conv_block_128, n_conv_block_256, n_conv_block_512 = 2, 2, 2, 2
+        elif depth == 29:
+            n_conv_block_64, n_conv_block_128, n_conv_block_256, n_conv_block_512 = 5, 5, 2, 2
+        elif depth == 49:
+            n_conv_block_64, n_conv_block_128, n_conv_block_256, n_conv_block_512 = 8, 8, 5, 3
+
         layers.append(BasicConvResBlock(input_dim=64, n_filters=64, kernel_size=3, padding=1, shortcut=shortcut))
-        for i in range(n_conv_block_64-1):
+        for _ in range(n_conv_block_64-1):
             layers.append(BasicConvResBlock(input_dim=64, n_filters=64, kernel_size=3, padding=1, shortcut=shortcut))
         layers.append(nn.MaxPool1d(kernel_size=3, stride=2, padding=1)) # l = initial length / 2
 
         ds = nn.Sequential(nn.Conv1d(64, 128, kernel_size=1, stride=1, bias=False), nn.BatchNorm1d(128))
         layers.append(BasicConvResBlock(input_dim=64, n_filters=128, kernel_size=3, padding=1, shortcut=shortcut, downsample=ds))
-        for i in range(n_conv_block_128-1):
+        for _ in range(n_conv_block_128-1):
             layers.append(BasicConvResBlock(input_dim=128, n_filters=128, kernel_size=3, padding=1, shortcut=shortcut))
         layers.append(nn.MaxPool1d(kernel_size=3, stride=2, padding=1)) # l = initial length / 4
 
         ds = nn.Sequential(nn.Conv1d(128, 256, kernel_size=1, stride=1, bias=False), nn.BatchNorm1d(256))
         layers.append(BasicConvResBlock(input_dim=128, n_filters=256, kernel_size=3, padding=1, shortcut=shortcut, downsample=ds))
-        for i in range(n_conv_block_256 - 1):
+        for _ in range(n_conv_block_256 - 1):
             layers.append(BasicConvResBlock(input_dim=256, n_filters=256, kernel_size=3, padding=1, shortcut=shortcut))
         layers.append(nn.MaxPool1d(kernel_size=3, stride=2, padding=1))
 
         ds = nn.Sequential(nn.Conv1d(256, 512, kernel_size=1, stride=1, bias=False), nn.BatchNorm1d(512))
         layers.append(BasicConvResBlock(input_dim=256, n_filters=512, kernel_size=3, padding=1, shortcut=shortcut, downsample=ds))
-        for i in range(n_conv_block_512 - 1):
+        for _ in range(n_conv_block_512 - 1):
             layers.append(BasicConvResBlock(input_dim=512, n_filters=512, kernel_size=3, padding=1, shortcut=shortcut))
         layers.append(nn.AdaptiveMaxPool1d(8))
 
@@ -221,23 +226,10 @@ if __name__ == "__main__":
     tr_data = [x_tr, np.array(tr_labels)]
     te_data = [x_te, np.array(te_labels)]
 
-    if opt.depth == 9:
-        n_conv_block_64, n_conv_block_128, n_conv_block_256, n_conv_block_512 = 2, 2, 2, 2
-    elif opt.depth == 17:
-        n_conv_block_64, n_conv_block_128, n_conv_block_256, n_conv_block_512 = 4, 4, 4, 4
-    elif opt.depth == 29:
-        n_conv_block_64, n_conv_block_128, n_conv_block_256, n_conv_block_512 = 10, 10, 4, 4
-    elif opt.depth == 49:
-        n_conv_block_64, n_conv_block_128, n_conv_block_256, n_conv_block_512 = 16, 16, 10, 6
-
     torch.manual_seed(opt.seed)
     print("Seed for random numbers: ", torch.initial_seed())
 
-    model = VDCNN(n_classes=n_classes, num_embedding=n_txt_feats, embedding_dim=16,
-                  n_conv_block_64=n_conv_block_64,
-                  n_conv_block_128=n_conv_block_128,
-                  n_conv_block_256=n_conv_block_256,
-                  n_conv_block_512=n_conv_block_512,
+    model = VDCNN(n_classes=n_classes, num_embedding=n_txt_feats, embedding_dim=16, depth=opt.depth,
                   n_fc_neurons=2048, shortcut=opt.shortcut)
 
     if opt.gpu:
@@ -254,7 +246,7 @@ if __name__ == "__main__":
     tr_gen = batchify(tr_data, batch_size=opt.batch_size)
 
     for n_iter in range(opt.iterations):
-        try :
+        try:
             data = tr_gen.__next__()
         except StopIteration:
             tr_gen = batchify(tr_data, batch_size=opt.batch_size)
@@ -307,7 +299,6 @@ if __name__ == "__main__":
 
             with open('{}/{}'.format(opt.model_folder, filename), 'wb') as f:
                 pickle.dump(diclogs, f, protocol=4)
-
 
         if n_iter % opt.lr_halve_interval == 0 and n_iter > 0:
             lr = optimizer.state_dict()['param_groups'][0]['lr']
