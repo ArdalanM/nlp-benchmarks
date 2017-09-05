@@ -307,7 +307,7 @@ class YelpReview(object):
             return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.folder_path, "test.csv"))
-2
+
 
 class YelpPolarity(object):
     """
