@@ -19,7 +19,9 @@ from sklearn import utils
 
 
 def get_args():
-    parser = argparse.ArgumentParser("Very Deep CNN with optional residual connections (https://arxiv.org/abs/1606.01781)")
+    parser = argparse.ArgumentParser("""
+    Very Deep CNN with optional residual connections (https://arxiv.org/abs/1606.01781)
+    """)
     parser.add_argument("--dataset", type=str, default='imdb')
     parser.add_argument("--model_folder", type=str, default="models/VDCNN/imdb")
     parser.add_argument("--depth", type=int, choices=[9, 17, 29, 49], default=9, help="Depth of the network tested in the paper (9, 17, 29, 49)")
@@ -36,6 +38,8 @@ def get_args():
     parser.add_argument("--test_interval", type=int, default=50, help="Number of iterations between testing phases")
     parser.add_argument('--gpu', action='store_true', default=True)
     parser.add_argument("--seed", type=int, default=1337)
+    parser.add_argument("--last_pooling_layer", type=str, choices=['k-max-pooling', 'max-pooling'], default='k-max-pooling', help="type of last pooling layer")
+
     args = parser.parse_args()
     return args
 
@@ -148,9 +152,16 @@ class VDCNN(nn.Module):
         layers.append(BasicConvResBlock(input_dim=256, n_filters=512, kernel_size=3, padding=1, shortcut=shortcut, downsample=ds))
         for _ in range(n_conv_block_512 - 1):
             layers.append(BasicConvResBlock(input_dim=512, n_filters=512, kernel_size=3, padding=1, shortcut=shortcut))
-        layers.append(nn.AdaptiveMaxPool1d(8))
 
-        fc_layers.extend([nn.Linear(8*512, n_fc_neurons), nn.ReLU()])
+        if opt.last_pooling_layer == 'k-max-pooling':
+            layers.append(nn.AdaptiveMaxPool1d(8))
+            fc_layers.extend([nn.Linear(8*512, n_fc_neurons), nn.ReLU()])
+        elif opt.last_pooling_layer == 'max-pooling':
+            layers.append(nn.MaxPool1d(kernel_size=8, stride=2, padding=0))
+            fc_layers.extend([nn.Linear(61*512, n_fc_neurons), nn.ReLU()])
+        else:
+            raise
+
         fc_layers.extend([nn.Linear(n_fc_neurons, n_fc_neurons), nn.ReLU()])
         fc_layers.extend([nn.Linear(n_fc_neurons, n_classes)])
 
