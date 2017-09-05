@@ -20,8 +20,8 @@
 
 
 ## Experiments:
-Results are reported as follows:  (i) / (ii) / (iii)
- - (i): Test set accuracy claimed by the paper  
+Results are reported as follows:  (i) / (ii)
+ - (i): Test set accuracy reported by the paper  
  - (ii): Test set accuracy reproduced here  
 
 |                                 | imdb |       ag_news  |     sogu_news     |      db_pedia      | yelp_polarity | yelp_review   | yahoo_answer | amazon_review | amazon_polarity |
