@@ -20,14 +20,14 @@
 
 
 ## Experiments:
-Results are reported as follows:  (i) / (ii) / (iii)
- - (i): Test set accuracy claimed by the paper  
+Results are reported as follows:  (i) / (ii)
+ - (i): Test set accuracy reported by the paper  
  - (ii): Test set accuracy reproduced here  
- - (iii): Epoch of convergence reproduced  
 
-|                     | imdb |       ag_news      |     sogu_news     |      db_pedia      | yelp_polarity | yelp_review | yahoo_answer | amazon_review | amazon_polarity |
-|---------------------|------|:------------------:|:-----------------:|:------------------:|:-------------:|:-----------:|:------------:|:-------------:|:---------------:|
-|CNN small            |      | 84.35 / 87.10 / 45 |91.35 / 93.53 / 05 | 98.02 / 98.15 / 25 |               |             |              |               |                 |
-|VDCNN (9 layers)     |      | 90.83 / 89.14 / 23 |96.30 / 93.50 / 50 | 98.75 / 98.35 / 24 |               |             |              |               |                 |
-|VDCNN (17 layers)    |      | -/-/-              |      -/           | - /                |               |             |              |               |                 |
-|    HAN              |      |                    |                   |                    |               |             |              |               |                 |
+|                                 | imdb |       ag_news  |     sogu_news     |      db_pedia      | yelp_polarity | yelp_review   | yahoo_answer | amazon_review | amazon_polarity |
+|---------------------------------|------|:--------------:|:-----------------:|:------------------:|:-------------:|:-------------:|:------------:|:-------------:|:---------------:|
+|CNN small                        |      | 84.35 / 87.10  | 91.35 / 93.53     | 98.02 / 98.15      |               |               |              |               |                 |
+|VDCNN (9 layers, k-max-pooling)  |      | 90.17 / 89.22  | 96.30 / 93.50     | 98.75 / 98.35      | 94.73 / 93.97 | 61.96 / 61.18 |              |               |                 |
+|VDCNN (17 layers, k-max-pooling) |      | 90.61 / 90.00  |      -/           | - /                | 94.95 / 94.73 | 62.59 /       |              |               |                 |
+|VDCNN (29 layers, k-max-pooling) |      | 91.33 / 91.22  |      -/           | - /                | 95.37 / 94.82 | 63.00 /       |              |               |                 |
+|    HAN                          |      |                |                   |                    |               |               |              |               |                 |
