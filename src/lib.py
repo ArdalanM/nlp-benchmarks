@@ -119,8 +119,6 @@ def create_dataset(generator, lowercase=True):
     return sentences, labels
 
 
-
-
 def get_metrics(y_true, y_prob, n_classes=2, list_metrics=[]):
     """Compute metrics for given true and predicted labels
 
