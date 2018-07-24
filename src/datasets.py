@@ -39,8 +39,7 @@ def get_file(fname, origin, untar=False, md5_hash=None, cache_subdir='datasets',
     # Returns
         Path to the downloaded file
     """
-    datadir_base = DATA_FOLDER
-    datadir = os.path.join(datadir_base, cache_subdir)
+    datadir = cache_subdir
     if not os.path.exists(datadir):
         os.makedirs(datadir)
 
@@ -130,20 +129,19 @@ class AgNews(object):
     """
     def __init__(self):
 
-        folder = "agnews"
-        csv_folder = "ag_news_csv"
-        self.n_classes = 4
-        self.folder_path = "{}/{}/{}".format(DATA_FOLDER, folder, csv_folder)
-        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/ag_news_csv.tar.gz"
+        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/ag_news.tar.gz"
+        self.data_name = os.path.basename(self.url).split(".")[0] # ag_news
+        self.data_folder = "{}/{}/raw".format(DATA_FOLDER, self.data_name)
+        self.n_classes = 4        
         self.epoch_size = 5000
 
         # Check if relevant files are in the folder_path
-        if os.path.exists(self.folder_path):
+        if os.path.exists(self.data_folder):
             for f in ["classes.txt", "readme.txt", "test.csv", "train.csv"]:
-                if not os.path.exists(os.path.join(self.folder_path, f)):
-                    self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+                if not os.path.exists(os.path.join(self.data_folder, f)):
+                    self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
         else:
-            self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+            self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     def load_train_test_csv(self):
         df_tr = pd.read_csv(os.path.join(self.folder_path, "train.csv"), encoding="utf-8")
@@ -178,15 +176,15 @@ class AgNews(object):
 
     def load_train_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "train.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "train.csv"))
+            self._generator(os.path.join(self.data_folder, "train.csv"))
 
     def load_test_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "test.csv"))
+            self._generator(os.path.join(self.data_folder, "test.csv"))
 
 
 class DbPedia(object):
@@ -196,19 +194,20 @@ class DbPedia(object):
     """
     def __init__(self):
 
-        folder = "dbpedia"
-        csv_folder = "dbpedia_csv"
+        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/db_pedia.tar.gz"
+        self.data_name = os.path.basename(self.url).split(".")[0] # ag_news
+        self.data_folder = "{}/{}/raw".format(DATA_FOLDER, self.data_name)
         self.n_classes = 14
-        self.folder_path = "{}/{}/{}".format(DATA_FOLDER, folder, csv_folder)
-        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/dbpedia_csv.tar.gz"
+        
         self.epoch_size = 5000
 
         # Check if relevant files are in the folder_path
-        if os.path.exists(self.folder_path):
+        if os.path.exists(self.data_folder):
             for f in ["classes.txt", "readme.txt", "test.csv", "train.csv"]:
-                assert os.path.exists(os.path.join(self.folder_path, f))
+                if not os.path.exists(os.path.join(self.data_folder, f)):
+                    self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
         else:
-            self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+            self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
     def _generator(filename, chunk_size=512):
@@ -238,15 +237,15 @@ class DbPedia(object):
 
     def load_train_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "train.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "train.csv"))
+            self._generator(os.path.join(self.data_folder, "train.csv"))
 
     def load_test_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "test.csv"))
+            self._generator(os.path.join(self.data_folder, "test.csv"))
 
 
 class YelpReview(object):
@@ -256,19 +255,19 @@ class YelpReview(object):
     """
     def __init__(self):
 
-        folder = "yelp_review"
-        csv_folder = "yelp_review_full_csv"
+        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/yelp_review_full.tar.gz"
+        self.data_name = os.path.basename(self.url).split(".")[0] # ag_news
+        self.data_folder = "{}/{}/raw".format(DATA_FOLDER, self.data_name)
         self.n_classes = 5
-        self.folder_path = "{}/{}/{}".format(DATA_FOLDER, folder, csv_folder)
-        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/yelp_review_full_csv.tar.gz"
         self.epoch_size = 5000
 
         # Check if relevant files are in the folder_path
-        if os.path.exists(self.folder_path):
+        if os.path.exists(self.data_folder):
             for f in ["readme.txt", "test.csv", "train.csv"]:
-                assert os.path.exists(os.path.join(self.folder_path, f))
+                if not os.path.exists(os.path.join(self.data_folder, f)):
+                    self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
         else:
-            self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+            self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
     def _generator(filename, chunk_size=512):
@@ -298,15 +297,15 @@ class YelpReview(object):
 
     def load_train_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "train.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "train.csv"))
+            self._generator(os.path.join(self.data_folder, "train.csv"))
 
     def load_test_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "test.csv"))
+            self._generator(os.path.join(self.data_folder, "test.csv"))
 
 
 class YelpPolarity(object):
@@ -316,19 +315,19 @@ class YelpPolarity(object):
     """
     def __init__(self):
 
-        folder = "yelp_review_polarity"
-        csv_folder = "yelp_review_polarity_csv"
-        self.n_classes = 2
-        self.folder_path = "{}/{}/{}".format(DATA_FOLDER, folder, csv_folder)
-        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/yelp_review_polarity_csv.tar.gz"
+        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/yelp_review_polarity.tar.gz"
+        self.data_name = os.path.basename(self.url).split(".")[0] # ag_news
+        self.data_folder = "{}/{}/raw".format(DATA_FOLDER, self.data_name)
+        self.n_classes = 2        
         self.epoch_size = 5000
 
         # Check if relevant files are in the folder_path
-        if os.path.exists(self.folder_path):
+        if os.path.exists(self.data_folder):
             for f in ["readme.txt", "test.csv", "train.csv"]:
-                assert os.path.exists(os.path.join(self.folder_path, f))
+                if not os.path.exists(os.path.join(self.data_folder, f)):
+                    self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
         else:
-            self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+            self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
     def _generator(filename, chunk_size=512):
@@ -358,15 +357,15 @@ class YelpPolarity(object):
 
     def load_train_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "train.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "train.csv"))
+            self._generator(os.path.join(self.data_folder, "train.csv"))
 
     def load_test_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "test.csv"))
+            self._generator(os.path.join(self.data_folder, "test.csv"))
 
 
 class AmazonReview(object):
@@ -376,19 +375,19 @@ class AmazonReview(object):
     """
     def __init__(self):
 
-        folder = "amazon_review"
-        csv_folder = "amazon_review_full_csv"
+        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/amazon_review_full.tar.gz"
+        self.data_name = os.path.basename(self.url).split(".")[0] # ag_news
+        self.data_folder = "{}/{}/raw".format(DATA_FOLDER, self.data_name)
         self.n_classes = 5
-        self.folder_path = "{}/{}/{}".format(DATA_FOLDER, folder, csv_folder)
-        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/amazon_review_full_csv.tar.gz"
         self.epoch_size = 30000
 
         # Check if relevant files are in the folder_path
-        if os.path.exists(self.folder_path):
+        if os.path.exists(self.data_folder):
             for f in ["readme.txt", "test.csv", "train.csv"]:
-                assert os.path.exists(os.path.join(self.folder_path, f))
+                if not os.path.exists(os.path.join(self.data_folder, f)):
+                    self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
         else:
-            self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+            self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
     def _generator(filename, chunk_size=512):
@@ -418,15 +417,15 @@ class AmazonReview(object):
 
     def load_train_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "train.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "train.csv"))
+            self._generator(os.path.join(self.data_folder, "train.csv"))
 
     def load_test_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "test.csv"))
+            self._generator(os.path.join(self.data_folder, "test.csv"))
 
 
 class AmazonPolarity(object):
@@ -436,19 +435,19 @@ class AmazonPolarity(object):
     """
     def __init__(self):
 
-        folder = "amazon_polarity"
-        csv_folder = "amazon_review_polarity_csv"
+        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/amazon_review_polarity.tar.gz"
+        self.data_name = os.path.basename(self.url).split(".")[0] # ag_news
+        self.data_folder = "{}/{}/raw".format(DATA_FOLDER, self.data_name)
         self.n_classes = 2
-        self.folder_path = "{}/{}/{}".format(DATA_FOLDER, folder, csv_folder)
-        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/amazon_review_polarity_csv.tar.gz"
         self.epoch_size = 30000
 
         # Check if relevant files are in the folder_path
-        if os.path.exists(self.folder_path):
+        if os.path.exists(self.data_folder):
             for f in ["readme.txt", "test.csv", "train.csv"]:
-                assert os.path.exists(os.path.join(self.folder_path, f))
+                if not os.path.exists(os.path.join(self.data_folder, f)):
+                    self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
         else:
-            self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+            self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
     def _generator(filename, chunk_size=512):
@@ -478,15 +477,15 @@ class AmazonPolarity(object):
 
     def load_train_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "train.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "train.csv"))
+            self._generator(os.path.join(self.data_folder, "train.csv"))
 
     def load_test_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "test.csv"))
+            self._generator(os.path.join(self.data_folder, "test.csv"))
 
 
 class SoguNews(object):
@@ -496,19 +495,19 @@ class SoguNews(object):
     """
     def __init__(self):
 
-        folder = "sogou_news"
-        csv_folder = "sogou_news_csv"
+        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/sogou_news.tar.gz"
+        self.data_name = os.path.basename(self.url).split(".")[0] # ag_news
+        self.data_folder = "{}/{}/raw".format(DATA_FOLDER, self.data_name)
         self.n_classes = 5
-        self.folder_path = "{}/{}/{}".format(DATA_FOLDER, folder, csv_folder)
-        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/sogou_news_csv.tar.gz"
         self.epoch_size = 5000
 
         # Check if relevant files are in the folder_path
-        if os.path.exists(self.folder_path):
+        if os.path.exists(self.data_folder):
             for f in ["readme.txt", "test.csv", "train.csv"]:
-                assert os.path.exists(os.path.join(self.folder_path, f))
+                if not os.path.exists(os.path.join(self.data_folder, f)):
+                    self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
         else:
-            self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+            self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
     def _generator(filename, chunk_size=512):
@@ -538,15 +537,15 @@ class SoguNews(object):
 
     def load_train_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "train.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "train.csv"))
+            self._generator(os.path.join(self.data_folder, "train.csv"))
 
     def load_test_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "test.csv"))
+            self._generator(os.path.join(self.data_folder, "test.csv"))
 
 
 class YahooAnswer(object):
@@ -556,19 +555,19 @@ class YahooAnswer(object):
     """
     def __init__(self):
 
-        folder = "yahoo_answers"
-        csv_folder = "yahoo_answers_csv"
+        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/yahoo_answers.tar.gz"
+        self.data_name = os.path.basename(self.url).split(".")[0] # ag_news
+        self.data_folder = "{}/{}/raw".format(DATA_FOLDER, self.data_name)
         self.n_classes = 10
-        self.folder_path = "{}/{}/{}".format(DATA_FOLDER, folder, csv_folder)
-        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/yahoo_answers_csv.tar.gz"
         self.epoch_size = 10000
 
         # Check if relevant files are in the folder_path
-        if os.path.exists(self.folder_path):
+        if os.path.exists(self.data_folder):
             for f in ["readme.txt", "test.csv", "train.csv"]:
-                assert os.path.exists(os.path.join(self.folder_path, f))
+                if not os.path.exists(os.path.join(self.data_folder, f)):
+                    self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
         else:
-            self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+            self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
     def _generator(filename, chunk_size=512):
@@ -598,15 +597,15 @@ class YahooAnswer(object):
 
     def load_train_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "train.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "train.csv"))
+            self._generator(os.path.join(self.data_folder, "train.csv"))
 
     def load_test_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "test.csv"))
+            self._generator(os.path.join(self.data_folder, "test.csv"))
 
 
 class Imdb(object):
@@ -615,18 +614,19 @@ class Imdb(object):
     """
     def __init__(self):
 
-        folder = "imdb"
-        csv_folder = "imdb_csv"
+        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/imdb.tar.gz"
+        self.data_name = os.path.basename(self.url).split(".")[0] # ag_news
+        self.data_folder = "{}/{}/raw".format(DATA_FOLDER, self.data_name)
         self.n_classes = 2
-        self.folder_path = "{}/{}/{}".format(DATA_FOLDER, folder, csv_folder)
-        self.url = "https://s3.eu-west-2.amazonaws.com/ardalan.mehrani.datasets/imdb_csv.tar.gz"
+        
 
         # Check if relevant files are in the folder_path
-        if os.path.exists(self.folder_path):
+        if os.path.exists(self.data_folder):
             for f in ["readme.txt", "test.csv", "train.csv"]:
-                assert os.path.exists(os.path.join(self.folder_path, f))
+                if not os.path.exists(os.path.join(self.data_folder, f)):
+                    self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
         else:
-            self._ = get_file(folder, origin=self.url, untar=True, cache_subdir=folder)
+            self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
     def _generator(filename, chunk_size=512):
@@ -656,15 +656,15 @@ class Imdb(object):
 
     def load_train_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "train.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "train.csv"))
+            self._generator(os.path.join(self.data_folder, "train.csv"))
 
     def load_test_data(self, chunk_size=512):
         if chunk_size:
-            return self._generator(os.path.join(self.folder_path, "test.csv"), chunk_size=chunk_size)
+            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
-            self._generator(os.path.join(self.folder_path, "test.csv"))
+            self._generator(os.path.join(self.data_folder, "test.csv"))
 
 
 def load_datasets(names=["ag_news", "imdb"]):
