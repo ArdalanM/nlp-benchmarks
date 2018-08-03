@@ -7,3 +7,4 @@ scipy
 torch
 torchvision
 requests
+tensorboard_logger
