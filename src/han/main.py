@@ -11,6 +11,7 @@ import itertools
 import argparse
 import numpy as np
 import torch.nn as nn
+import pickle as pkl
 
 from tqdm import tqdm
 from collections import Counter
@@ -24,25 +25,24 @@ import torch.nn.functional as F
 
 from src.han.net import HAN
 
-from tensorboard_logger import configure, log_value
-
 
 def get_args():
     parser = argparse.ArgumentParser("""
     paper: Hierarchical Attention Network (https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf)
     credits goes to cedias: https://github.com/cedias/Hierarchical-Sentiment
     """)
-    parser.add_argument("--dataset", type=str, default='ag_news')
-    parser.add_argument("--model_folder", type=str, default="models/han/ag_news")
+    parser.add_argument("--dataset", type=str, default='imdb')
+    parser.add_argument("--data_folder", type=str, default="datasets/imdb/han")
+    parser.add_argument("--model_folder", type=str, default="models/han/imdb")
+    parser.add_argument('--max_words', type=int, default=100000, help="vocabulary size")
+    parser.add_argument("--solver_type", type=str, choices=['sgd', 'adam'], default='adam')
     parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
-    parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--lr", type=float, default=0.01)
-    parser.add_argument("--lr_halve_interval", type=float, default=100, help="Number of iterations before halving learning rate")
-    parser.add_argument("--class_weights", nargs='+', type=float, default=None)
-    parser.add_argument("--snapshot_interval", type=int, default=2, help="Save model every n epoch")
+    parser.add_argument("--epochs", type=int, default=200)
+    parser.add_argument("--lr", type=float, default=0.0001)
+    parser.add_argument("--lr_halve_interval", type=int, default=-1, help="Number of iterations before halving learning rate")
+    parser.add_argument("--gamma", type=float, default=0.1, help="learning halving facor")
+    parser.add_argument("--snapshot_interval", type=int, default=10, help="Save model every n epoch")
     parser.add_argument('--gpuid', type=int, default=0, help="select gpu indice (default = -1 = no gpu used")
-    parser.add_argument("--seed", type=int, default=1337)
-    parser.add_argument("--log_folder", type=str, default="/mnt/terabox/research/logs/dd_board")
     args = parser.parse_args()
     return args
 
@@ -213,7 +213,7 @@ def get_metrics(cm, list_metrics):
     return dic_metrics
 
 
-def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,criterion=None):
+def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,scheduler=None,criterion=None):
 
     net.train() if optimize else net.eval()
 
@@ -246,11 +246,14 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
                 loss.backward()
                 optimizer.step()
                 dic_metrics['logloss'] = epoch_loss/(iteration+1)
-                
+                dic_metrics['lr'] = optimizer.state_dict()['param_groups'][0]['lr']
+
             pbar.update(1)
             pbar.set_postfix(dic_metrics)
 
-    # print("===> Epoch {} metrics: {}".format(epoch, dic_metrics))
+    if scheduler:
+        scheduler.step()
+        
 
 
 def save(net,dic,path):
@@ -265,6 +268,7 @@ def save(net,dic,path):
 opt = get_args()
 
 os.makedirs(opt.model_folder, exist_ok=True)
+os.makedirs(opt.data_folder, exist_ok=True)
 
 logger = lib.get_logger(logdir=opt.model_folder, logname="logs.txt")
 logger.info("parameters: {}".format(vars(opt)))
@@ -274,37 +278,83 @@ dataset_name = dataset.__class__.__name__
 n_classes = dataset.n_classes
 logger.info("dataset: {}, n_classes: {}".format(dataset_name, n_classes))
 
-logger.info("  - loading dataset...")
-tr_data = dataset.load_train_data()
-te_data = dataset.load_test_data()
+
+tr_seq_path = "{}/train_sequences.pkl".format(opt.data_folder)
+te_seq_path = "{}/test_sequences.pkl".format(opt.data_folder)
+
+tr_lab_path = "{}/train_labels.pkl".format(opt.data_folder)
+te_lab_path = "{}/test_labels.pkl".format(opt.data_folder)
+
+wdict_path = "{}/word_dict.pkl".format(opt.data_folder)
+
+# check if datasets exist
+all_exist = True
+for path in [tr_seq_path, te_seq_path, tr_lab_path, te_lab_path, wdict_path]:
+    if not os.path.exists(path):
+        all_exist = False
+
+if all_exist:
+    
+    tr_seq = pkl.load(open(tr_seq_path,"rb"))
+    tr_lab = pkl.load(open(tr_lab_path,"rb"))
+    
+    te_seq = pkl.load(open(te_seq_path,"rb"))
+    te_lab = pkl.load(open(te_lab_path,"rb"))
+
+    wdict = pkl.load(open(wdict_path,"rb"))
+    n_tokens = len(wdict)
+
+else:
+
+    logger.info("  - loading raw datasets...")
+    tr_data = dataset.load_train_data()
+    te_data = dataset.load_test_data()
+    
+    logger.info("  - fit...")
+    tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
+    prepro = Preprocessing(batch_size=opt.batch_size)
+    vecto = Vectorizer()
+    vecto.fit(prepro.transform(tr_sentences), max_words=opt.max_words)
+    
+    wdict = vecto.word_dict
+    n_tokens = len(wdict)
 
 
-tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
+    logger.info("  - transform train...")
+    tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
+    tr_seq = list(vecto.transform(prepro.transform(tr_sentences)))
+    tr_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 1)))
 
-# fit
-prepro = Preprocessing(batch_size=1000)
-vecto = Vectorizer()
-vecto.fit(prepro.transform(tr_sentences), max_words=10000)
 
-n_tokens = len(vecto.word_dict)
+    logger.info("  - transform test...")
+    te_sentences = itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 0))
+    te_seq = list(vecto.transform(prepro.transform(te_sentences)))
+    te_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 1)))
 
-# tranform
-tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
-te_sentences = itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 0))
+    logger.info("  - saving datasets...")
+    
+    logger.info("  - saving to {}".format(tr_seq_path))
+    pkl.dump(tr_seq,open(tr_seq_path,"wb"))
+    
+    logger.info("  - saving to {}".format(te_seq_path))
+    pkl.dump(te_seq,open(te_seq_path,"wb"))
 
-tr_sequences = list(vecto.transform(prepro.transform(tr_sentences)))
-te_sequences = list(vecto.transform(prepro.transform(te_sentences)))
+    logger.info("  - saving to {}".format(tr_lab_path))
+    pkl.dump(tr_lab,open(tr_lab_path,"wb"))
 
-tr_labels = list(itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 1)))
-te_labels = list(itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 1)))
+    logger.info("  - saving to {}".format(te_lab_path))
+    pkl.dump(te_lab,open(te_lab_path,"wb"))
+
+    logger.info("  - saving to {}".format(wdict_path))
+    pkl.dump(wdict,open(wdict_path,"wb"))
 
 
 # select cpu or gpu
 device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
 list_metrics = ['accuracy', 'pres_0', 'pres_1', 'recall_0', 'recall_1']
 
-tr_loader = DataLoader(TupleLoader(tr_sequences, tr_labels), batch_size=opt.batch_size, shuffle=True, num_workers=4, collate_fn=tuple_batch, pin_memory=True)
-te_loader = DataLoader(TupleLoader(te_sequences, te_labels), batch_size=opt.batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
+tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=4, collate_fn=tuple_batch, pin_memory=True)
+te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
 
 clip_grad = 1
 
@@ -312,18 +362,29 @@ net = HAN(n_tokens, n_classes, emb_size=200, hid_size=50)
 net.to(device)
 
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(net.parameters())
+
+if opt.solver_type == 'sgd':
+    optimizer = torch.optim.SGD(net.parameters(), lr = opt.lr)    
+elif opt.solver_type == 'adam':
+    optimizer = torch.optim.Adam(net.parameters(), lr = opt.lr)
+
+scheduler = None
+if opt.lr_halve_interval > 0:
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, opt.lr_halve_interval, gamma=opt.gamma, last_epoch=-1)
+    
+
 torch.nn.utils.clip_grad_norm_(net.parameters(), clip_grad)
 
 for epoch in range(1, opt.epochs + 1):
-    train(epoch,net,tr_loader,device,msg="training",optimize=True,optimizer=optimizer,criterion=criterion)
-    train(epoch,net,te_loader,device,msg="testing ")
+    train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, scheduler=scheduler, criterion=criterion)
+    train(epoch,net, te_loader, device, msg="testing ")
 
     if (epoch % opt.snapshot_interval == 0) and (epoch > 0):
         path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
         print("snapshot of model saved as {}".format(path))
-        save(net, vecto.word_dict, path=path)
+        save(net, wdict, path=path)
+
 
 path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
 print("snapshot of model saved as {}".format(path))
-save(net, vecto.word_dict, path=path)
+save(net, wdict, path=path)
