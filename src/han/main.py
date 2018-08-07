@@ -42,6 +42,7 @@ def get_args():
     parser.add_argument("--lr_halve_interval", type=int, default=-1, help="Number of iterations before halving learning rate")
     parser.add_argument("--gamma", type=float, default=0.1, help="learning halving facor")
     parser.add_argument("--snapshot_interval", type=int, default=10, help="Save model every n epoch")
+    parser.add_argument("--model_weights_path", type=str, default="")
     parser.add_argument('--gpuid', type=int, default=0, help="select gpu indice (default = -1 = no gpu used")
     args = parser.parse_args()
     return args
@@ -214,7 +215,7 @@ def get_metrics(cm, list_metrics):
 
 
 def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,scheduler=None,criterion=None):
-
+    
     net.train() if optimize else net.eval()
 
     epoch_loss = 0
@@ -253,7 +254,7 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
 
     if scheduler:
         scheduler.step()
-        
+    logger.info(dic_metrics)
 
 
 def save(net,dic,path):
@@ -294,19 +295,26 @@ for path in [tr_seq_path, te_seq_path, tr_lab_path, te_lab_path, wdict_path]:
         all_exist = False
 
 if all_exist:
-    
+    logger.info("Loading existing dataset: ")
+    logger.info("  - Loading: {}".format(tr_seq_path))
     tr_seq = pkl.load(open(tr_seq_path,"rb"))
+
+    logger.info("  - Loading: {}".format(tr_lab_path))
     tr_lab = pkl.load(open(tr_lab_path,"rb"))
     
+    logger.info("  - Loading: {}".format(te_seq_path))
     te_seq = pkl.load(open(te_seq_path,"rb"))
+
+    logger.info("  - Loading: {}".format(te_lab_path))
     te_lab = pkl.load(open(te_lab_path,"rb"))
 
+    logger.info("  - Loading: {}".format(wdict_path))
     wdict = pkl.load(open(wdict_path,"rb"))
     n_tokens = len(wdict)
 
 else:
 
-    logger.info("  - loading raw datasets...")
+    logger.info("Loading raw datasets...")
     tr_data = dataset.load_train_data()
     te_data = dataset.load_test_data()
     
@@ -349,19 +357,33 @@ else:
     pkl.dump(wdict,open(wdict_path,"wb"))
 
 
+tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=4, collate_fn=tuple_batch, pin_memory=True)
+te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
+
 # select cpu or gpu
 device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
 list_metrics = ['accuracy', 'pres_0', 'pres_1', 'recall_0', 'recall_1']
 
-tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=4, collate_fn=tuple_batch, pin_memory=True)
-te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
 
-clip_grad = 1
+logger.info("Creating model...")
+if opt.model_weights_path and os.path.exists(opt.model_weights_path):
+    logger.info(" --loading existing weights from: {}".format(opt.model_weights_path))
+    state = torch.load(opt.model_weights_path)
+    wdict = state["word_dic"]
+    n_tokens = len(wdict)
 
-net = HAN(n_tokens, n_classes, emb_size=200, hid_size=50)
-net.to(device)
+    net = HAN(ntoken=len(state["word_dic"]),emb_size=state["embed.weight"].size(1),hid_size=state["sent.rnn.weight_hh_l0"].size(1),num_class=state["lin_out.weight"].size(0))
+    del state["word_dic"]
+    net.load_state_dict(state)
+    net.to(device)
+
+else:
+
+    net = HAN(n_tokens, n_classes, emb_size=200, hid_size=50)
+    net.to(device)
 
 criterion = torch.nn.CrossEntropyLoss()
+torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
 
 if opt.solver_type == 'sgd':
     optimizer = torch.optim.SGD(net.parameters(), lr = opt.lr)    
@@ -372,8 +394,6 @@ scheduler = None
 if opt.lr_halve_interval > 0:
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, opt.lr_halve_interval, gamma=opt.gamma, last_epoch=-1)
     
-
-torch.nn.utils.clip_grad_norm_(net.parameters(), clip_grad)
 
 for epoch in range(1, opt.epochs + 1):
     train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, scheduler=scheduler, criterion=criterion)
