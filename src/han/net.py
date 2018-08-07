@@ -9,6 +9,7 @@ class EmbedAttention(nn.Module):
         super(EmbedAttention, self).__init__()
         self.att_w = nn.Linear(att_size,1,bias=False)
 
+
     def forward(self,input,len_s):
         att = self.att_w(input).squeeze(-1)
         out = self._masked_softmax(att,len_s).unsqueeze(-1)
@@ -62,9 +63,11 @@ class HAN(nn.Module):
         self.sent = AttentionalBiRNN(hid_size*2, hid_size)
         self.lin_out = nn.Linear(hid_size*2,num_class)
 
+
     def set_emb_tensor(self,emb_tensor):
         self.emb_size = emb_tensor.size(-1)
         self.embed.weight.data = emb_tensor
+
 
     def _reorder_sent(self,sents,sent_order):
         
@@ -73,6 +76,7 @@ class HAN(nn.Module):
         revs = revs.view(sent_order.size(0),sent_order.size(1),sents.size(1))
 
         return revs
+
  
     def forward(self, batch_reviews,sent_order,ls,lr):
 
