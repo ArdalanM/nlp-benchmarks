@@ -14,10 +14,9 @@ class EmbedAttention(nn.Module):
         out = self._masked_softmax(att,len_s).unsqueeze(-1)
         return out
         
-    
+
     def _masked_softmax(self,mat,len_s):
         
-        #print(len_s.type())
         len_s = len_s.type_as(mat.data)#.long()
         idxes = torch.arange(0,int(len_s[0]),out=mat.data.new(int(len_s[0])).long()).unsqueeze(1)
         mask = (idxes.float()<len_s.unsqueeze(0)).float()
@@ -45,7 +44,7 @@ class AttentionalBiRNN(nn.Module):
         
         rnn_sents,_ = self.rnn(packed_batch)
         enc_sents,len_s = torch.nn.utils.rnn.pad_packed_sequence(rnn_sents)
-
+        len_s = len_s.to(self.lin.weight.device) # bug in pytorch, need to force device placement
         emb_h = F.tanh(self.lin(enc_sents))
 
         attended = self.emb_att(emb_h,len_s) * enc_sents
