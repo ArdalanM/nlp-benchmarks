@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+@author: DIAS Charles-Emmanuel <Charles-Emmanuel.Dias@lip6.fr>
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
