@@ -17,6 +17,9 @@
 ## Models:
  - [1]: **CNN**: Character-level convolutional networks for text classification ([paper](https://arxiv.org/abs/1509.01626), [code](https://github.com/ArdalanM/nlp-benchmarks/blob/master/src/VDCNN.py))  
  - [2]: **VDCNN**: Very deep convolutional networks for text classification ([paper](https://arxiv.org/abs/1606.01781), [code](https://github.com/ArdalanM/nlp-benchmarks/blob/master/src/CNN.py))  
+ - [3]: **HAN**: Hierarchical Attention Networks for Document Classification ([paper](https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf), [code]()  
+
+Thanks to [@cedias](https://github.com/cedias) for his **HAN** implentation ([here](https://github.com/cedias/Hierarchical-Sentiment))
 
 
 ## Experiments:

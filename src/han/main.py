@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-@author: Ardalan MEHRANI <ardalan77400@gmail.com>
+@author: 
+        - Charles-Emmanuel DIAS  <Charles-Emmanuel.Dias@lip6.fr>
+        - Ardalan Mehrani <ardalan77400@gmail.com>
 @brief:
 """
 
@@ -29,7 +31,7 @@ from src.han.net import HAN
 def get_args():
     parser = argparse.ArgumentParser("""
     paper: Hierarchical Attention Network (https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf)
-    credits goes to cedias: https://github.com/cedias/Hierarchical-Sentiment
+    credit to cedias: https://github.com/cedias/Hierarchical-Sentiment
     """)
     parser.add_argument("--dataset", type=str, default='imdb')
     parser.add_argument("--data_folder", type=str, default="datasets/imdb/han")
