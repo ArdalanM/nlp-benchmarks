@@ -53,7 +53,8 @@ class AttentionalBiRNN(nn.Module):
         len_s = len_s.to(self.lin.weight.device) # bug in pytorch, need to force device placement
         emb_h = F.tanh(self.lin(enc_sents))
 
-        attended = self.emb_att(emb_h,len_s) * enc_sents
+        self.attention_vector = self.emb_att(emb_h,len_s)
+        attended = self.attention_vector * enc_sents
         return attended.sum(0,True).squeeze(0)
 
 
