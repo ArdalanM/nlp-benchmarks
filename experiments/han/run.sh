@@ -2,8 +2,8 @@
 cd ../../
  
 # dataset="ag_news"
-dataset="imdb"
-max_feats=10000
+dataset="ag_news"
+max_feats=100000
 max_sents=-1
 max_words=-1
 # dataset="db_pedia"
@@ -20,7 +20,7 @@ lr=0.0001
 lr_halve_interval=-1
 gamma=0.9
 snapshot_interval=10
-gpuid=0
+gpuid=1
 
 python -m src.han.main  --dataset ${dataset} \
                         --data_folder ${data_folder} \
