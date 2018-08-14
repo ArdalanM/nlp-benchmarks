@@ -18,9 +18,10 @@ import pickle as pkl
 from tqdm import tqdm
 from collections import Counter
 from sklearn import utils, metrics
-
+from gensim.models import KeyedVectors
 from src import lib
 from src.datasets import load_datasets
+
 
 from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
@@ -36,7 +37,10 @@ def get_args():
     parser.add_argument("--dataset", type=str, default='imdb')
     parser.add_argument("--data_folder", type=str, default="datasets/imdb/han")
     parser.add_argument("--model_folder", type=str, default="models/han/imdb")
-    parser.add_argument('--max_words', type=int, default=100000, help="vocabulary size")
+    parser.add_argument("--pretrain",action="store_true", default=True, help="pre train embeddings with word2vec (gensim required)")
+    parser.add_argument('--max_feats', type=int, default=10000, help="vocabulary size")
+    parser.add_argument('--max_sents', type=int, default=-1, help="max number of sentences per example")
+    parser.add_argument('--max_words', type=int, default=-1, help="max word length")
     parser.add_argument("--solver_type", type=str, choices=['sgd', 'adam'], default='adam')
     parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
     parser.add_argument("--epochs", type=int, default=200)
@@ -95,8 +99,9 @@ class Vectorizer():
         if type(t) == str:
             t = [t]
 
-        revs = []
-        
+        if self.max_sent_len < 0 and self.max_word_len < 0:
+            trim = False
+
         for rev in t:
             review = []
             for j,sent in enumerate(rev):  
@@ -268,145 +273,197 @@ def save(net,dic,path):
     torch.save(dict_m,path)
 
 
-opt = get_args()
+def load_embeddings(filepath, offset=0):
+    wv = KeyedVectors.load_word2vec_format(filepath, binary=False)
 
-os.makedirs(opt.model_folder, exist_ok=True)
-os.makedirs(opt.data_folder, exist_ok=True)
-
-logger = lib.get_logger(logdir=opt.model_folder, logname="logs.txt")
-logger.info("parameters: {}".format(vars(opt)))
-
-dataset = load_datasets(names=[opt.dataset])[0]
-dataset_name = dataset.__class__.__name__
-n_classes = dataset.n_classes
-logger.info("dataset: {}, n_classes: {}".format(dataset_name, n_classes))
+    wdict = {word:i for i, word in tqdm(enumerate(wv.index2word, offset), desc="word indexing", total=len(wv.index2word))}
+    tensor = torch.FloatTensor(wv.vectors)
+    tensor = F.pad(tensor, (0,0,offset,0)) # add 2 row of zeros for __unk__ and __pad__ tokens
+    return tensor, wdict
 
 
-tr_seq_path = "{}/train_sequences.pkl".format(opt.data_folder)
-te_seq_path = "{}/test_sequences.pkl".format(opt.data_folder)
+if __name__ == "__main__":
 
-tr_lab_path = "{}/train_labels.pkl".format(opt.data_folder)
-te_lab_path = "{}/test_labels.pkl".format(opt.data_folder)
+    opt = get_args()
 
-wdict_path = "{}/word_dict.pkl".format(opt.data_folder)
+    os.makedirs(opt.model_folder, exist_ok=True)
+    os.makedirs(opt.data_folder, exist_ok=True)
 
-# check if datasets exist
-all_exist = True
-for path in [tr_seq_path, te_seq_path, tr_lab_path, te_lab_path, wdict_path]:
-    if not os.path.exists(path):
-        all_exist = False
+    logger = lib.get_logger(logdir=opt.model_folder, logname="logs.txt")
+    logger.info("parameters: {}".format(vars(opt)))
 
-if all_exist:
-    logger.info("Loading existing dataset: ")
-    logger.info("  - Loading: {}".format(tr_seq_path))
-    tr_seq = pkl.load(open(tr_seq_path,"rb"))
-
-    logger.info("  - Loading: {}".format(tr_lab_path))
-    tr_lab = pkl.load(open(tr_lab_path,"rb"))
-    
-    logger.info("  - Loading: {}".format(te_seq_path))
-    te_seq = pkl.load(open(te_seq_path,"rb"))
-
-    logger.info("  - Loading: {}".format(te_lab_path))
-    te_lab = pkl.load(open(te_lab_path,"rb"))
-
-    logger.info("  - Loading: {}".format(wdict_path))
-    wdict = pkl.load(open(wdict_path,"rb"))
-    n_tokens = len(wdict)
-
-else:
-
-    logger.info("Loading raw datasets...")
-    tr_data = dataset.load_train_data()
-    te_data = dataset.load_test_data()
-    
-    logger.info("  - fit...")
-    tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
-    prepro = Preprocessing(batch_size=opt.batch_size)
-    vecto = Vectorizer()
-    vecto.fit(prepro.transform(tr_sentences), max_words=opt.max_words)
-    
-    wdict = vecto.word_dict
-    n_tokens = len(wdict)
+    dataset = load_datasets(names=[opt.dataset])[0]
+    dataset_name = dataset.__class__.__name__
+    n_classes = dataset.n_classes
+    logger.info("dataset: {}, n_classes: {}".format(dataset_name, n_classes))
 
 
-    logger.info("  - transform train...")
-    tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
-    tr_seq = list(vecto.transform(prepro.transform(tr_sentences)))
-    tr_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 1)))
+    tr_seq_path = "{}/train_sequences.pkl".format(opt.data_folder)
+    te_seq_path = "{}/test_sequences.pkl".format(opt.data_folder)
+
+    tr_lab_path = "{}/train_labels.pkl".format(opt.data_folder)
+    te_lab_path = "{}/test_labels.pkl".format(opt.data_folder)
+
+    wdict_path = "{}/word_dict.pkl".format(opt.data_folder)
+
+    embedding_path = "{}/word_embeddings".format(opt.data_folder)
 
 
-    logger.info("  - transform test...")
-    te_sentences = itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 0))
-    te_seq = list(vecto.transform(prepro.transform(te_sentences)))
-    te_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 1)))
+    # check if datasets exist
+    all_exist = True
+    l = [tr_seq_path, te_seq_path, tr_lab_path, te_lab_path, wdict_path]
+    if opt.pretrain:
+        l.append(embedding_path)
+    for path in l:
+        if not os.path.exists(path):
+            all_exist = False
 
-    logger.info("  - saving datasets...")
-    
-    logger.info("  - saving to {}".format(tr_seq_path))
-    pkl.dump(tr_seq,open(tr_seq_path,"wb"))
-    
-    logger.info("  - saving to {}".format(te_seq_path))
-    pkl.dump(te_seq,open(te_seq_path,"wb"))
+    if all_exist:
 
-    logger.info("  - saving to {}".format(tr_lab_path))
-    pkl.dump(tr_lab,open(tr_lab_path,"wb"))
+        logger.info("Loading existing dataset: ")
+        logger.info("  - Loading: {}".format(tr_seq_path))
+        tr_seq = pkl.load(open(tr_seq_path,"rb"))
 
-    logger.info("  - saving to {}".format(te_lab_path))
-    pkl.dump(te_lab,open(te_lab_path,"wb"))
+        logger.info("  - Loading: {}".format(tr_lab_path))
+        tr_lab = pkl.load(open(tr_lab_path,"rb"))
+        
+        logger.info("  - Loading: {}".format(te_seq_path))
+        te_seq = pkl.load(open(te_seq_path,"rb"))
 
-    logger.info("  - saving to {}".format(wdict_path))
-    pkl.dump(wdict,open(wdict_path,"wb"))
+        logger.info("  - Loading: {}".format(te_lab_path))
+        te_lab = pkl.load(open(te_lab_path,"rb"))
+
+        if opt.pretrain:
+            logger.info("  - loading {}".format(embedding_path))
+            tensor, wdict = load_embeddings(embedding_path, offset=2)
+            wdict["_pad_"] = 0
+            wdict["_unk_"] = 1
+            n_tokens = len(wdict)
+        
+        else:
+            logger.info("  - Loading: {}".format(wdict_path))
+            wdict = pkl.load(open(wdict_path,"rb"))
+            n_tokens = len(wdict)
 
 
-tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=4, collate_fn=tuple_batch, pin_memory=True)
-te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
+    else:
+        logger.info("Creating datasets")
+        logger.info("  - loading raw datasets")
+        tr_data = dataset.load_train_data()
+        te_data = dataset.load_test_data()
+        
+        prepro = Preprocessing(batch_size=opt.batch_size)
+        vecto = Vectorizer(max_sent_len=opt.max_sents, max_word_len=opt.max_words)
+        
+        if opt.pretrain:
+            logger.info("  -unsupervised pre training")
+            import gensim
 
-# select cpu or gpu
-device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
-list_metrics = ['accuracy', 'pres_0', 'pres_1', 'recall_0', 'recall_1']
+            tr_rev_iter = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
+            te_rev_iter = itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 0))
+            rev_iter = itertools.chain(tr_rev_iter, te_rev_iter) # sentence iterator
+            logger.info("  - loading sentences in to ram :(")
+            sentences = [sent.split() for sent in rev_iter]
+
+            logger.info("  - train word2vec")
+            w2vmodel = gensim.models.Word2Vec(sentences, size=200, window=5, min_count=5, iter=2, max_vocab_size=10000000, workers=5)
+            
+            logger.info("  - save embbedings: {}".format(embedding_path))
+            w2vmodel.wv.save_word2vec_format(embedding_path,total_vec=len(w2vmodel.wv.vocab))  
+            
+            logger.info("  - loading embedding from {}".format(embedding_path))
+            tensor, wdict = load_embeddings(embedding_path, offset=2)
+            wdict["_pad_"] = 0
+            wdict["_unk_"] = 1
+            n_tokens = len(wdict)
+            vecto.word_dict = wdict
+        
+        else:
+        
+            logger.info("  - fit")
+            tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
+            vecto.fit(prepro.transform(tr_sentences), max_words=opt.max_feats)
+            wdict = vecto.word_dict
+            n_tokens = len(wdict)
+
+        logger.info("  - transform train")
+        tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
+        tr_seq = list(vecto.transform(prepro.transform(tr_sentences)))
+        tr_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 1)))
 
 
-logger.info("Creating model...")
-if opt.model_weights_path and os.path.exists(opt.model_weights_path):
-    logger.info(" --loading existing weights from: {}".format(opt.model_weights_path))
-    state = torch.load(opt.model_weights_path)
-    wdict = state["word_dic"]
-    n_tokens = len(wdict)
+        logger.info("  - transform test")
+        te_sentences = itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 0))
+        te_seq = list(vecto.transform(prepro.transform(te_sentences)))
+        te_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 1)))
 
-    net = HAN(ntoken=len(state["word_dic"]),emb_size=state["embed.weight"].size(1),hid_size=state["sent.rnn.weight_hh_l0"].size(1),num_class=state["lin_out.weight"].size(0))
-    del state["word_dic"]
-    net.load_state_dict(state)
+        logger.info("  - saving datasets")
+        
+        logger.info("  - saving to {}".format(tr_seq_path))
+        pkl.dump(tr_seq,open(tr_seq_path,"wb"))
+        
+        logger.info("  - saving to {}".format(te_seq_path))
+        pkl.dump(te_seq,open(te_seq_path,"wb"))
+
+        logger.info("  - saving to {}".format(tr_lab_path))
+        pkl.dump(tr_lab,open(tr_lab_path,"wb"))
+
+        logger.info("  - saving to {}".format(te_lab_path))
+        pkl.dump(te_lab,open(te_lab_path,"wb"))
+
+        logger.info("  - saving to {}".format(wdict_path))
+        pkl.dump(wdict,open(wdict_path,"wb"))
+
+
+    tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=4, collate_fn=tuple_batch, pin_memory=True)
+    te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
+
+    # select cpu or gpu
+    device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
+    list_metrics = ['accuracy', 'pres_0', 'pres_1', 'recall_0', 'recall_1']
+
+
+    logger.info("Creating model...")
+    if opt.model_weights_path and os.path.exists(opt.model_weights_path):
+        logger.info(" --loading existing weights from: {}".format(opt.model_weights_path))
+        state = torch.load(opt.model_weights_path)
+        wdict = state["word_dic"]
+        n_tokens = len(wdict)
+
+        net = HAN(ntoken=len(state["word_dic"]),emb_size=state["embed.weight"].size(1),hid_size=state["sent.rnn.weight_hh_l0"].size(1),num_class=state["lin_out.weight"].size(0))
+        del state["word_dic"]
+        net.load_state_dict(state)
+
+    else:
+        net = HAN(n_tokens, n_classes, emb_size=200, hid_size=50)
+
+    if opt.pretrain:
+        net.set_emb_tensor(tensor)
+
+    criterion = torch.nn.CrossEntropyLoss()
+    torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
     net.to(device)
 
-else:
+    if opt.solver_type == 'sgd':
+        optimizer = torch.optim.SGD(net.parameters(), lr = opt.lr)    
+    elif opt.solver_type == 'adam':
+        optimizer = torch.optim.Adam(net.parameters(), lr = opt.lr)
 
-    net = HAN(n_tokens, n_classes, emb_size=200, hid_size=50)
-    net.to(device)
+    scheduler = None
+    if opt.lr_halve_interval > 0:
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, opt.lr_halve_interval, gamma=opt.gamma, last_epoch=-1)
+        
 
-criterion = torch.nn.CrossEntropyLoss()
-torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
+    for epoch in range(1, opt.epochs + 1):
+        train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, scheduler=scheduler, criterion=criterion)
+        train(epoch,net, te_loader, device, msg="testing ")
 
-if opt.solver_type == 'sgd':
-    optimizer = torch.optim.SGD(net.parameters(), lr = opt.lr)    
-elif opt.solver_type == 'adam':
-    optimizer = torch.optim.Adam(net.parameters(), lr = opt.lr)
-
-scheduler = None
-if opt.lr_halve_interval > 0:
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, opt.lr_halve_interval, gamma=opt.gamma, last_epoch=-1)
-    
-
-for epoch in range(1, opt.epochs + 1):
-    train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, scheduler=scheduler, criterion=criterion)
-    train(epoch,net, te_loader, device, msg="testing ")
-
-    if (epoch % opt.snapshot_interval == 0) and (epoch > 0):
-        path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
-        print("snapshot of model saved as {}".format(path))
-        save(net, wdict, path=path)
+        if (epoch % opt.snapshot_interval == 0) and (epoch > 0):
+            path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
+            print("snapshot of model saved as {}".format(path))
+            save(net, wdict, path=path)
 
 
-path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
-print("snapshot of model saved as {}".format(path))
-save(net, wdict, path=path)
+    path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
+    print("snapshot of model saved as {}".format(path))
+    save(net, wdict, path=path)
