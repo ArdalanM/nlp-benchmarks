@@ -2,7 +2,7 @@
 cd ../../
  
 # dataset="ag_news"
-dataset="sogu_news"
+dataset="db_pedia"
 max_feats=100000
 max_sents=8
 max_words=32
