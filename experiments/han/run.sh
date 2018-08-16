@@ -2,10 +2,10 @@
 cd ../../
  
 # dataset="ag_news"
-dataset="ag_news"
+dataset="sogu_news"
 max_feats=100000
-max_sents=-1
-max_words=-1
+max_sents=8
+max_words=32
 # dataset="db_pedia"
 # dataset="yelp_review"
 # dataset="yelp_polarity"
@@ -20,7 +20,7 @@ lr=0.0001
 lr_halve_interval=-1
 gamma=0.9
 snapshot_interval=10
-gpuid=1
+gpuid=0
 
 python -m src.han.main  --dataset ${dataset} \
                         --data_folder ${data_folder} \
