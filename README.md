@@ -27,14 +27,67 @@ Results are reported as follows:  (i) / (ii)
  - (i): Test set accuracy reported by the paper  
  - (ii): Test set accuracy reproduced here  
 
-|                                 | imdb |       ag_news  |     sogu_news     |      db_pedia      | yelp_polarity | yelp_review   | yahoo_answer | amazon_review | amazon_polarity |
-|:-------------------------------:|:----:|:--------------:|:-----------------:|:------------------:|:-------------:|:-------------:|:------------:|:-------------:|:---------------:|
-|CNN small                        |      | 84.35 / 87.10  | 91.35 / 93.53     | 98.02 / 98.15      |               |               |              |               |                 |
-|VDCNN (9 layers, k-max-pooling)  |      | 90.17 / 89.22  | 96.42 / 93.50     | 98.75 / 98.35      | 94.73 / 93.97 | 61.96 / 61.18 |              |               |                 |
-|VDCNN (9 layers, max-pooling)    |      | 90.83 / 89.97  | 96.30/ 92.39      | 98.65 /            | 95.12/ 93.47  | 63.27/ 61.21  |              |               |                 |
-|VDCNN (17 layers, k-max-pooling) |      | 90.61 / 90.00  | 96.49 /           | - /                | 94.95 / 94.73 | 62.59 /       |              |               |                 |
-|VDCNN (17 layers, max-pooling)   |      | 91.12/ 90.09   | 96.46/ 91.93      | 98.60 /            | 95.50/ 94.67  | 63.93/ 62.08  |              |               |                 |
-|VDCNN (29 layers, k-max-pooling) |      | 91.33 / 91.22  | 96.82/            | - /                | 95.37 / 94.82 | 63.00 /       |              |               |                 |
-|VDCNN (29 layers, max-pooling)   |      | 91.27/ 90.43   | 96.64/ 87.90      | 98.71 /            | 95.72/ 94.75  | 64.26/ 62.73  |              |               |                 |
-|    HAN                          | /86.2|                |                   |    / 98.8          |      / 95.0   |               |              |               |                 |
+### Imdb
+| Model           | paper accuracy | repo accuracy  |
+|:---------------:| :-------------:| :------------- |
+| CNN small       |                |                |
+| VDCNN 9 layers  |                |                |
+| VDCNN 17 layers |                |                |
+| VDCNN 29 layers |                |                |
+| HAN             |                |                |
+|                 |                |        90.5    |
 
+
+### Ag news 
+| Model           | paper accuracy | repo accuracy  |
+|:---------------:| :-------------:| :------------- |
+| CNN small       |    84.35       |87.10           |
+| VDCNN 9 layers  |    90.17       |  89.22         |
+| VDCNN 17 layers |  90.61         |  90.00         |
+| VDCNN 29 layers |  91.27         |     90.43      |
+| HAN             |                |      91.7      |
+|                 |                |                |
+
+### Sogu news
+| Model           | paper accuracy | repo accuracy  |
+|:---------------:| :-------------:| :------------- |
+| CNN small       |   91.35        |   93.53        |
+| VDCNN 9 layers  |    96.42       |   93.50        |
+| VDCNN 17 layers |     96.49      |                |
+| VDCNN 29 layers |    96.64       | 87.90          |
+| HAN             |                |                |
+|                 |                |                |
+
+
+### DBpedia
+| Model           | paper accuracy | repo accuracy  |
+|:---------------:| :-------------:| :------------- |
+| CNN small       |98.02           | 98.15          |
+| VDCNN 9 layers  |98.75           | 98.35          |
+| VDCNN 17 layers |98.02           | 98.15          |
+| VDCNN 29 layers |98.71           |                |
+| HAN             |                |   98.8         |
+|                 |                |                |
+
+
+### Yelp polarity
+| Model           | paper accuracy | repo accuracy  |
+|:---------------:| :-------------:| :------------- |
+| CNN small       |                |                |
+| VDCNN 9 layers  |94.73           | 93.97          |
+| VDCNN 17 layers |94.95           | 94.73          |
+| VDCNN 29 layers |95.72           |  94.75         |
+| HAN             |                |                |
+|                 |                |                |
+
+
+### Yelp review
+| Model           | paper accuracy | repo accuracy  |
+|:---------------:| :-------------:| :------------- |
+| CNN small       |                |                |
+| VDCNN 9 layers  |61.96           | 61.18          |
+| VDCNN 17 layers |62.59           |                |
+| VDCNN 29 layers |64.26           |  62.73         |
+| HAN             |                |                |
+|                 |                |                |
+ 
