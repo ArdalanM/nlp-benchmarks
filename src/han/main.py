@@ -43,6 +43,7 @@ def get_args():
     parser.add_argument('--max_words', type=int, default=-1, help="max word length")
     parser.add_argument("--solver_type", type=str, choices=['sgd', 'adam'], default='adam')
     parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
+    parser.add_argument("--test_batch_size", type=int, default=None, help="batch size during prediction (equals to batch_size if none)")
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--lr", type=float, default=0.0001)
     parser.add_argument("--lr_halve_interval", type=int, default=-1, help="Number of iterations before halving learning rate")
@@ -285,6 +286,7 @@ def load_embeddings(filepath, offset=0):
 if __name__ == "__main__":
 
     opt = get_args()
+    opt.test_batch_size =  opt.test_batch_size if opt.test_batch_size else opt.batch_size
 
     os.makedirs(opt.model_folder, exist_ok=True)
     os.makedirs(opt.data_folder, exist_ok=True)
@@ -416,7 +418,7 @@ if __name__ == "__main__":
 
 
     tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=4, collate_fn=tuple_batch, pin_memory=True)
-    te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
+    te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.test_batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
 
     # select cpu or gpu
     device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
