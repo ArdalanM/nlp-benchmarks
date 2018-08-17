@@ -51,6 +51,7 @@ def get_args():
     parser.add_argument("--snapshot_interval", type=int, default=10, help="Save model every n epoch")
     parser.add_argument("--model_weights_path", type=str, default="")
     parser.add_argument('--gpuid', type=int, default=0, help="select gpu indice (default = -1 = no gpu used")
+    parser.add_argument('--nthreads', type=int, default=4, help="number of cpu threads")
     args = parser.parse_args()
     return args
 
@@ -368,7 +369,7 @@ if __name__ == "__main__":
             sentences = [sent.split() for sent in rev_iter]
 
             logger.info("  - train word2vec")
-            w2vmodel = gensim.models.Word2Vec(sentences, size=200, window=5, min_count=5, iter=2, max_vocab_size=10000000, workers=5)
+            w2vmodel = gensim.models.Word2Vec(sentences, size=200, window=5, min_count=5, iter=2, max_vocab_size=10000000, workers=opt.nthreads)
             
             logger.info("  - save embbedings: {}".format(embedding_path))
             w2vmodel.wv.save_word2vec_format(embedding_path,total_vec=len(w2vmodel.wv.vocab))  
@@ -417,8 +418,8 @@ if __name__ == "__main__":
         pkl.dump(wdict,open(wdict_path,"wb"))
 
 
-    tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=4, collate_fn=tuple_batch, pin_memory=True)
-    te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.test_batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
+    tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=opt.nthreads, collate_fn=tuple_batch, pin_memory=True)
+    te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.test_batch_size, shuffle=False, num_workers=opt.nthreads, collate_fn=tuple_batch)
 
     # select cpu or gpu
     device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
