@@ -464,6 +464,6 @@ if __name__ == "__main__":
             save(net, wdict, path=path)
 
 
-    path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
+    path = "{}/model_epoch_{}".format(opt.model_folder,opt.epochs)
     print("snapshot of model saved as {}".format(path))
     save(net, wdict, path=path)
