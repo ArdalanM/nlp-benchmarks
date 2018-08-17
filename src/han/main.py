@@ -7,6 +7,7 @@
 """
 
 import os
+import re
 import torch
 import spacy
 import itertools
@@ -58,25 +59,21 @@ def get_args():
 
 class Preprocessing():
 
-    def __init__(self, batch_size=None, n_threads=8):
-
+    def __init__(self, batch_size=None, n_threads=8, delimiters=(';', '\n', '.')):
         self.batch_size = batch_size
         self.n_threads = n_threads
+        self.delimiters = [re.escape(x) for x in delimiters]
+        self.pattern = re.compile("|".join(self.delimiters))
 
-        self.nlp = spacy.load('en', disable=['tagger', 'parser', 'ner'])
-        self.nlp.add_pipe(self.nlp.create_pipe('sentencizer'))
-        self.nlp.add_pipe(self.to_array_comp)
 
-    def to_array_comp(self, doc):
-        return [[w.orth_ for w in s] for s in doc.sents]
- 
     def transform(self, sentences):
         """
         sentences: list(str) iterator
         output: list(list(str)) iterator
         """
-        output = self.nlp.pipe(sentences, batch_size=self.batch_size, n_threads=self.n_threads) 
-        return output
+        
+        for review in sentences:
+            yield [sentence.split() for sentence in re.split(self.pattern, review) if len(sentence) > 0]
 
 
 class Vectorizer():
