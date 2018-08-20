@@ -265,7 +265,6 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
 
     if scheduler:
         scheduler.step()
-    logger.info(dic_metrics)
 
 
 def save(net,dic,path):
