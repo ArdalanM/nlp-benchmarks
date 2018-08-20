@@ -59,12 +59,14 @@ def get_args():
 
 class Preprocessing():
 
-    def __init__(self, batch_size=None, n_threads=8, delimiters=(';', '\n', '.')):
+    def __init__(self, batch_size=None, n_threads=8, delimiters=(';', '\n', '.'), dataset=None):
         self.batch_size = batch_size
         self.n_threads = n_threads
         self.delimiters = [re.escape(x) for x in delimiters]
         self.pattern = re.compile("|".join(self.delimiters))
 
+        self.dataset=dataset
+        
 
     def transform(self, sentences):
         """
@@ -75,6 +77,15 @@ class Preprocessing():
         for review in sentences:
             yield [sentence.split() for sentence in re.split(self.pattern, review) if len(sentence) > 0]
 
+    def __iter__(self):
+        gen = self.dataset.load_train_data()
+        try:
+            for review, _ in gen:
+                for sentence in re.split(self.pattern, review):
+                    yield sentence.split()
+        except StopIteration:
+            gen = self.dataset.load_train_data()
+
 
 class Vectorizer():
     def __init__(self,word_dict=None, max_sent_len=8, max_word_len=32):
@@ -82,26 +93,25 @@ class Vectorizer():
         self.max_sent_len = max_sent_len
         self.max_word_len = max_word_len
     
-    def fit(self, text_iterator, max_words):
-        word_counter = Counter(itertools.chain.from_iterable(w for s in tqdm(text_iterator, desc="counting words") for w in s))
+    def fit(self, text_iterator, max_words, n_samples=None):
+        word_counter = Counter(itertools.chain.from_iterable(w for s in tqdm(text_iterator, desc="counting words", total=n_samples) for w in s))
         self.word_dict =  {w: i for i,(w,_) in tqdm(enumerate(word_counter.most_common(max_words),start=2),desc="building word dict",total=max_words)}
         self.word_dict["_pad_"] = 0
         self.word_dict["_unk_"] = 1
         print("Dictionnary has {} words".format(len(self.word_dict)))
     
-    def transform(self,t,trim=True):
+    def transform(self,lsequences,trim=True, n_samples=None):
+        """
+        lsequences: list(list(list(int)))
+        list of review, review is a list of sequences, sequences is a list of int
+        """
 
-        if self.word_dict is None:
-            print("No dictionnary to vectorize text \n-> call method build_dict \n-> or set a word_dict attribute \n first")
-            raise Exception
-
-        if type(t) == str:
-            t = [t]
+        assert self.word_dict, "No dictionnary to vectorize text \n-> call method build_dict \n-> or set a word_dict attribute \n first"
 
         if self.max_sent_len < 0 and self.max_word_len < 0:
             trim = False
 
-        for rev in t:
+        for rev in tqdm(lsequences, desc="transform", total=n_samples):
             review = []
             for j,sent in enumerate(rev):  
 
@@ -113,18 +123,13 @@ class Vectorizer():
                     if trim and k >= self.max_word_len:
                         break
 
-                    if word in self.word_dict:
-                        s.append(self.word_dict[word])
-                    else:
-                        s.append(self.word_dict["_unk_"]) #_unk_word_
+                    s.append(self.word_dict.get(word, self.word_dict["_unk_"]))
                 
                 if len(s) >= 1:
                     review.append(s)
             if len(review) == 0:
                 review = [[self.word_dict["_unk_"]]]        
-            # revs.append(review)
             yield review
-        # return revs
 
 
 def tuple_batch(l):
@@ -348,25 +353,20 @@ if __name__ == "__main__":
 
     else:
         logger.info("Creating datasets")
-        logger.info("  - loading raw datasets")
-        tr_data = dataset.load_train_data()
-        te_data = dataset.load_test_data()
-        
-        prepro = Preprocessing(batch_size=opt.batch_size)
+        n_tr_samples = np.sum([1 for _ in tqdm(dataset.load_train_data(), desc="counting train samples")])
+        n_te_samples = np.sum([1 for _ in tqdm(dataset.load_train_data(), desc="counting test samples")])
+        logger.info("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
+
         vecto = Vectorizer(max_sent_len=opt.max_sents, max_word_len=opt.max_words)
         
         if opt.pretrain:
             logger.info("  -unsupervised pre training")
             import gensim
 
-            tr_rev_iter = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
-            te_rev_iter = itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 0))
-            rev_iter = itertools.chain(tr_rev_iter, te_rev_iter) # sentence iterator
-            logger.info("  - loading sentences in to ram :(")
-            sentences = [sent.split() for sent in rev_iter]
+            prepro = Preprocessing(dataset=dataset)
 
             logger.info("  - train word2vec")
-            w2vmodel = gensim.models.Word2Vec(sentences, size=200, window=5, min_count=5, iter=2, max_vocab_size=10000000, workers=opt.nthreads)
+            w2vmodel = gensim.models.Word2Vec(prepro, size=200, window=5, min_count=5, iter=2, max_vocab_size=10000000, workers=opt.nthreads)
             
             logger.info("  - save embbedings: {}".format(embedding_path))
             w2vmodel.wv.save_word2vec_format(embedding_path,total_vec=len(w2vmodel.wv.vocab))  
@@ -379,23 +379,23 @@ if __name__ == "__main__":
             vecto.word_dict = wdict
         
         else:
-        
+
             logger.info("  - fit")
-            tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
-            vecto.fit(prepro.transform(tr_sentences), max_words=opt.max_feats)
+            tr_sentences = yield_index(dataset.load_train_data(), 0)
+            vecto.fit(prepro.transform(tr_sentences), max_words=opt.max_feats, n_samples=n_tr_samples)
             wdict = vecto.word_dict
             n_tokens = len(wdict)
 
         logger.info("  - transform train")
-        tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
-        tr_seq = list(vecto.transform(prepro.transform(tr_sentences)))
-        tr_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 1)))
+        tr_sentences = yield_index(dataset.load_train_data(), 0)
+        tr_seq = list(vecto.transform(prepro.transform(tr_sentences), n_samples=n_tr_samples))
+        tr_lab = list(yield_index(dataset.load_train_data(), 1))
 
 
         logger.info("  - transform test")
-        te_sentences = itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 0))
-        te_seq = list(vecto.transform(prepro.transform(te_sentences)))
-        te_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 1)))
+        te_sentences = yield_index(dataset.load_test_data(), 0)
+        te_seq = list(vecto.transform(prepro.transform(te_sentences), n_samples=n_te_samples))
+        te_lab = list(yield_index(dataset.load_test_data(), 1))
 
         logger.info("  - saving datasets")
         
