@@ -150,33 +150,6 @@ class AgNews(object):
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
-<<<<<<< HEAD
-                sentences.append(sentence)
-                labels.append(label)
-                i += 1
-                if i == chunk_size:
-                    i = 0
-                    yield sentences, labels
-                    sentences, labels = [], []
-
-            if sentences and labels:
-                yield sentences, labels
-            else:
-                break
-        f.close()
-
-    def load_train_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "train.csv"))
-
-    def load_test_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "test.csv"))
-=======
                 yield sentence, label
 
     def load_train_data(self):
@@ -184,7 +157,6 @@ class AgNews(object):
 
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
->>>>>>> dev
 
 
 class DbPedia(object):
@@ -217,33 +189,6 @@ class DbPedia(object):
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
-<<<<<<< HEAD
-                sentences.append(sentence)
-                labels.append(label)
-                i += 1
-                if i == chunk_size:
-                    i = 0
-                    yield sentences, labels
-                    sentences, labels = [], []
-
-            if sentences and labels:
-                yield sentences, labels
-            else:
-                break
-        f.close()
-
-    def load_train_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "train.csv"))
-
-    def load_test_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "test.csv"))
-=======
                 yield sentence, label
 
     def load_train_data(self):
@@ -251,7 +196,6 @@ class DbPedia(object):
 
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
->>>>>>> dev
 
 
 class YelpReview(object):
@@ -283,33 +227,6 @@ class YelpReview(object):
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
-<<<<<<< HEAD
-                sentences.append(sentence)
-                labels.append(label)
-                i += 1
-                if i == chunk_size:
-                    i = 0
-                    yield sentences, labels
-                    sentences, labels = [], []
-
-            if sentences and labels:
-                yield sentences, labels
-            else:
-                break
-        f.close()
-
-    def load_train_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "train.csv"))
-
-    def load_test_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "test.csv"))
-=======
                 yield sentence, label
 
     def load_train_data(self):
@@ -317,7 +234,6 @@ class YelpReview(object):
 
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
->>>>>>> dev
 
 
 class YelpPolarity(object):
@@ -349,33 +265,6 @@ class YelpPolarity(object):
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
-<<<<<<< HEAD
-                sentences.append(sentence)
-                labels.append(label)
-                i += 1
-                if i == chunk_size:
-                    i = 0
-                    yield sentences, labels
-                    sentences, labels = [], []
-
-            if sentences and labels:
-                yield sentences, labels
-            else:
-                break
-        f.close()
-
-    def load_train_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "train.csv"))
-
-    def load_test_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "test.csv"))
-=======
                 yield sentence, label
 
     def load_train_data(self):
@@ -383,7 +272,6 @@ class YelpPolarity(object):
 
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
->>>>>>> dev
 
 
 class AmazonReview(object):
@@ -415,33 +303,6 @@ class AmazonReview(object):
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
-<<<<<<< HEAD
-                sentences.append(sentence)
-                labels.append(label)
-                i += 1
-                if i == chunk_size:
-                    i = 0
-                    yield sentences, labels
-                    sentences, labels = [], []
-
-            if sentences and labels:
-                yield sentences, labels
-            else:
-                break
-        f.close()
-
-    def load_train_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "train.csv"))
-
-    def load_test_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "test.csv"))
-=======
                 yield sentence, label
 
     def load_train_data(self):
@@ -449,7 +310,6 @@ class AmazonReview(object):
 
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
->>>>>>> dev
 
 
 class AmazonPolarity(object):
@@ -481,33 +341,6 @@ class AmazonPolarity(object):
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
-<<<<<<< HEAD
-                sentences.append(sentence)
-                labels.append(label)
-                i += 1
-                if i == chunk_size:
-                    i = 0
-                    yield sentences, labels
-                    sentences, labels = [], []
-
-            if sentences and labels:
-                yield sentences, labels
-            else:
-                break
-        f.close()
-
-    def load_train_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "train.csv"))
-
-    def load_test_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "test.csv"))
-=======
                 yield sentence, label
 
     def load_train_data(self):
@@ -515,7 +348,6 @@ class AmazonPolarity(object):
 
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
->>>>>>> dev
 
 
 class SoguNews(object):
@@ -547,33 +379,6 @@ class SoguNews(object):
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
-<<<<<<< HEAD
-                sentences.append(sentence)
-                labels.append(label)
-                i += 1
-                if i == chunk_size:
-                    i = 0
-                    yield sentences, labels
-                    sentences, labels = [], []
-
-            if sentences and labels:
-                yield sentences, labels
-            else:
-                break
-        f.close()
-
-    def load_train_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "train.csv"))
-
-    def load_test_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "test.csv"))
-=======
                 yield sentence, label
 
     def load_train_data(self):
@@ -581,7 +386,6 @@ class SoguNews(object):
 
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
->>>>>>> dev
 
 
 class YahooAnswer(object):
@@ -613,33 +417,6 @@ class YahooAnswer(object):
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
-<<<<<<< HEAD
-                sentences.append(sentence)
-                labels.append(label)
-                i += 1
-                if i == chunk_size:
-                    i = 0
-                    yield sentences, labels
-                    sentences, labels = [], []
-
-            if sentences and labels:
-                yield sentences, labels
-            else:
-                break
-        f.close()
-
-    def load_train_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "train.csv"))
-
-    def load_test_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "test.csv"))
-=======
                 yield sentence, label
 
     def load_train_data(self):
@@ -647,7 +424,6 @@ class YahooAnswer(object):
 
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
->>>>>>> dev
 
 
 class Imdb(object):
@@ -678,33 +454,6 @@ class Imdb(object):
             for line in reader:
                 sentence = line['sentence']
                 label = int(line['label'])
-<<<<<<< HEAD
-                sentences.append(sentence)
-                labels.append(label)
-                i += 1
-                if i == chunk_size:
-                    i = 0
-                    yield sentences, labels
-                    sentences, labels = [], []
-
-            if sentences and labels:
-                yield sentences, labels
-            else:
-                break
-        f.close()
-
-    def load_train_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "train.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "train.csv"))
-
-    def load_test_data(self, chunk_size=512):
-        if chunk_size:
-            return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
-        else:
-            self._generator(os.path.join(self.data_folder, "test.csv"))
-=======
                 # if sentence and label:
                 yield sentence, label
 
@@ -713,7 +462,6 @@ class Imdb(object):
 
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
->>>>>>> dev
 
 
 def load_datasets(names=["ag_news", "imdb"]):

@@ -7,10 +7,7 @@
 """
 
 import os
-<<<<<<< HEAD
-=======
 import re
->>>>>>> dev
 import torch
 import spacy
 import itertools
@@ -47,10 +44,7 @@ def get_args():
     parser.add_argument('--max_words', type=int, default=-1, help="max word length")
     parser.add_argument("--solver_type", type=str, choices=['sgd', 'adam'], default='adam')
     parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
-<<<<<<< HEAD
-=======
     parser.add_argument("--test_batch_size", type=int, default=None, help="batch size during prediction (equals to batch_size if none)")
->>>>>>> dev
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--lr", type=float, default=0.0001)
     parser.add_argument("--lr_halve_interval", type=int, default=-1, help="Number of iterations before halving learning rate")
@@ -58,30 +52,13 @@ def get_args():
     parser.add_argument("--snapshot_interval", type=int, default=10, help="Save model every n epoch")
     parser.add_argument("--model_weights_path", type=str, default="")
     parser.add_argument('--gpuid', type=int, default=0, help="select gpu indice (default = -1 = no gpu used")
-<<<<<<< HEAD
-=======
     parser.add_argument('--nthreads', type=int, default=4, help="number of cpu threads")
->>>>>>> dev
     args = parser.parse_args()
     return args
 
 
 class Preprocessing():
 
-<<<<<<< HEAD
-    def __init__(self, batch_size=None, n_threads=8):
-
-        self.batch_size = batch_size
-        self.n_threads = n_threads
-
-        self.nlp = spacy.load('en', disable=['tagger', 'parser', 'ner'])
-        self.nlp.add_pipe(self.nlp.create_pipe('sentencizer'))
-        self.nlp.add_pipe(self.to_array_comp)
-
-    def to_array_comp(self, doc):
-        return [[w.orth_ for w in s] for s in doc.sents]
- 
-=======
     def __init__(self, batch_size=None, n_threads=8, delimiters=(';', '\n', '.'), dataset=None):
         self.batch_size = batch_size
         self.n_threads = n_threads
@@ -91,16 +68,11 @@ class Preprocessing():
         self.dataset=dataset
         
 
->>>>>>> dev
     def transform(self, sentences):
         """
         sentences: list(str) iterator
         output: list(list(str)) iterator
         """
-<<<<<<< HEAD
-        output = self.nlp.pipe(sentences, batch_size=self.batch_size, n_threads=self.n_threads) 
-        return output
-=======
         
         for review in sentences:
             yield [sentence.split() for sentence in re.split(self.pattern, review) if len(sentence) > 0]
@@ -113,7 +85,6 @@ class Preprocessing():
                     yield sentence.split()
         except StopIteration:
             gen = self.dataset.load_train_data()
->>>>>>> dev
 
 
 class Vectorizer():
@@ -122,28 +93,13 @@ class Vectorizer():
         self.max_sent_len = max_sent_len
         self.max_word_len = max_word_len
     
-<<<<<<< HEAD
-    def fit(self, text_iterator, max_words):
-        word_counter = Counter(itertools.chain.from_iterable(w for s in tqdm(text_iterator, desc="counting words") for w in s))
-=======
     def fit(self, text_iterator, max_words, n_samples=None):
         word_counter = Counter(itertools.chain.from_iterable(w for s in tqdm(text_iterator, desc="counting words", total=n_samples) for w in s))
->>>>>>> dev
         self.word_dict =  {w: i for i,(w,_) in tqdm(enumerate(word_counter.most_common(max_words),start=2),desc="building word dict",total=max_words)}
         self.word_dict["_pad_"] = 0
         self.word_dict["_unk_"] = 1
         print("Dictionnary has {} words".format(len(self.word_dict)))
     
-<<<<<<< HEAD
-    def transform(self,t,trim=True):
-
-        if self.word_dict is None:
-            print("No dictionnary to vectorize text \n-> call method build_dict \n-> or set a word_dict attribute \n first")
-            raise Exception
-
-        if type(t) == str:
-            t = [t]
-=======
     def transform(self,lsequences,trim=True, n_samples=None):
         """
         lsequences: list(list(list(int)))
@@ -151,16 +107,11 @@ class Vectorizer():
         """
 
         assert self.word_dict, "No dictionnary to vectorize text \n-> call method build_dict \n-> or set a word_dict attribute \n first"
->>>>>>> dev
 
         if self.max_sent_len < 0 and self.max_word_len < 0:
             trim = False
 
-<<<<<<< HEAD
-        for rev in t:
-=======
         for rev in tqdm(lsequences, desc="transform", total=n_samples):
->>>>>>> dev
             review = []
             for j,sent in enumerate(rev):  
 
@@ -172,26 +123,13 @@ class Vectorizer():
                     if trim and k >= self.max_word_len:
                         break
 
-<<<<<<< HEAD
-                    if word in self.word_dict:
-                        s.append(self.word_dict[word])
-                    else:
-                        s.append(self.word_dict["_unk_"]) #_unk_word_
-=======
                     s.append(self.word_dict.get(word, self.word_dict["_unk_"]))
->>>>>>> dev
                 
                 if len(s) >= 1:
                     review.append(s)
             if len(review) == 0:
                 review = [[self.word_dict["_unk_"]]]        
-<<<<<<< HEAD
-            # revs.append(review)
             yield review
-        # return revs
-=======
-            yield review
->>>>>>> dev
 
 
 def tuple_batch(l):
@@ -327,10 +265,6 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
 
     if scheduler:
         scheduler.step()
-<<<<<<< HEAD
-    logger.info(dic_metrics)
-=======
->>>>>>> dev
 
 
 def save(net,dic,path):
@@ -354,10 +288,7 @@ def load_embeddings(filepath, offset=0):
 if __name__ == "__main__":
 
     opt = get_args()
-<<<<<<< HEAD
-=======
     opt.test_batch_size =  opt.test_batch_size if opt.test_batch_size else opt.batch_size
->>>>>>> dev
 
     os.makedirs(opt.model_folder, exist_ok=True)
     os.makedirs(opt.data_folder, exist_ok=True)
@@ -421,39 +352,20 @@ if __name__ == "__main__":
 
     else:
         logger.info("Creating datasets")
-<<<<<<< HEAD
-        logger.info("  - loading raw datasets")
-        tr_data = dataset.load_train_data()
-        te_data = dataset.load_test_data()
-        
-        prepro = Preprocessing(batch_size=opt.batch_size)
-=======
         n_tr_samples = np.sum([1 for _ in tqdm(dataset.load_train_data(), desc="counting train samples")])
         n_te_samples = np.sum([1 for _ in tqdm(dataset.load_train_data(), desc="counting test samples")])
         logger.info("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
 
->>>>>>> dev
         vecto = Vectorizer(max_sent_len=opt.max_sents, max_word_len=opt.max_words)
         
         if opt.pretrain:
             logger.info("  -unsupervised pre training")
             import gensim
 
-<<<<<<< HEAD
-            tr_rev_iter = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
-            te_rev_iter = itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 0))
-            rev_iter = itertools.chain(tr_rev_iter, te_rev_iter) # sentence iterator
-            logger.info("  - loading sentences in to ram :(")
-            sentences = [sent.split() for sent in rev_iter]
-
-            logger.info("  - train word2vec")
-            w2vmodel = gensim.models.Word2Vec(sentences, size=200, window=5, min_count=5, iter=2, max_vocab_size=10000000, workers=5)
-=======
             prepro = Preprocessing(dataset=dataset)
 
             logger.info("  - train word2vec")
             w2vmodel = gensim.models.Word2Vec(prepro, size=200, window=5, min_count=5, iter=2, max_vocab_size=10000000, workers=opt.nthreads)
->>>>>>> dev
             
             logger.info("  - save embbedings: {}".format(embedding_path))
             w2vmodel.wv.save_word2vec_format(embedding_path,total_vec=len(w2vmodel.wv.vocab))  
@@ -466,32 +378,14 @@ if __name__ == "__main__":
             vecto.word_dict = wdict
         
         else:
-<<<<<<< HEAD
-        
-            logger.info("  - fit")
-            tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
-            vecto.fit(prepro.transform(tr_sentences), max_words=opt.max_feats)
-=======
 
             logger.info("  - fit")
             tr_sentences = yield_index(dataset.load_train_data(), 0)
             vecto.fit(prepro.transform(tr_sentences), max_words=opt.max_feats, n_samples=n_tr_samples)
->>>>>>> dev
             wdict = vecto.word_dict
             n_tokens = len(wdict)
 
         logger.info("  - transform train")
-<<<<<<< HEAD
-        tr_sentences = itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 0))
-        tr_seq = list(vecto.transform(prepro.transform(tr_sentences)))
-        tr_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_train_data(), 1)))
-
-
-        logger.info("  - transform test")
-        te_sentences = itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 0))
-        te_seq = list(vecto.transform(prepro.transform(te_sentences)))
-        te_lab = list(itertools.chain.from_iterable(yield_index(dataset.load_test_data(), 1)))
-=======
         tr_sentences = yield_index(dataset.load_train_data(), 0)
         tr_seq = list(vecto.transform(prepro.transform(tr_sentences), n_samples=n_tr_samples))
         tr_lab = list(yield_index(dataset.load_train_data(), 1))
@@ -501,7 +395,6 @@ if __name__ == "__main__":
         te_sentences = yield_index(dataset.load_test_data(), 0)
         te_seq = list(vecto.transform(prepro.transform(te_sentences), n_samples=n_te_samples))
         te_lab = list(yield_index(dataset.load_test_data(), 1))
->>>>>>> dev
 
         logger.info("  - saving datasets")
         
@@ -521,13 +414,8 @@ if __name__ == "__main__":
         pkl.dump(wdict,open(wdict_path,"wb"))
 
 
-<<<<<<< HEAD
-    tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=4, collate_fn=tuple_batch, pin_memory=True)
-    te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.batch_size, shuffle=False, num_workers=4, collate_fn=tuple_batch)
-=======
     tr_loader = DataLoader(TupleLoader(tr_seq, tr_lab), batch_size=opt.batch_size, shuffle=True, num_workers=opt.nthreads, collate_fn=tuple_batch, pin_memory=True)
     te_loader = DataLoader(TupleLoader(te_seq, te_lab), batch_size=opt.test_batch_size, shuffle=False, num_workers=opt.nthreads, collate_fn=tuple_batch)
->>>>>>> dev
 
     # select cpu or gpu
     device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
@@ -575,10 +463,6 @@ if __name__ == "__main__":
             save(net, wdict, path=path)
 
 
-<<<<<<< HEAD
-    path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
-=======
     path = "{}/model_epoch_{}".format(opt.model_folder,opt.epochs)
->>>>>>> dev
     print("snapshot of model saved as {}".format(path))
     save(net, wdict, path=path)
