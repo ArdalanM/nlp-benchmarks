@@ -2,9 +2,10 @@
 cd ../../
  
 # dataset="ag_news"
-dataset="imdb"
+# dataset="imdb"
+dataset="sogu_news"
 max_feats=100000
-max_sents=8
+max_sents=15
 max_words=32
 # dataset="db_pedia"
 # dataset="yelp_review"
@@ -15,11 +16,11 @@ data_folder="datasets/${dataset}/han"
 model_folder="models/han/${dataset}"
 solver_type="adam"
 batch_size="32"
-epochs=100
+epochs=20
 lr=0.0001
 lr_halve_interval=-1
 gamma=0.9
-snapshot_interval=10
+snapshot_interval=2
 gpuid=0
 
 python -m src.han.main  --dataset ${dataset} \
