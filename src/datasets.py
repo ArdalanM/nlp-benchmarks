@@ -143,23 +143,14 @@ class AgNews(object):
         else:
             self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
-    def load_train_test_csv(self):
-        df_tr = pd.read_csv(os.path.join(self.folder_path, "train.csv"), encoding="utf-8")
-        df_te = pd.read_csv(os.path.join(self.folder_path, "test.csv"), encoding="utf-8")
-        return df_tr, df_te
+    def _generator(self, filename):
 
-    @staticmethod
-    def _generator(filename, chunk_size=512):
-
-        f = open(filename, mode='r', encoding='utf-8')
-        reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
-        while True:
-            sentences, labels = [], []
-            i = 0
-
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
+<<<<<<< HEAD
                 sentences.append(sentence)
                 labels.append(label)
                 i += 1
@@ -185,6 +176,15 @@ class AgNews(object):
             return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.data_folder, "test.csv"))
+=======
+                yield sentence, label
+
+    def load_train_data(self):
+        return self._generator(os.path.join(self.data_folder, "train.csv"))
+
+    def load_test_data(self):
+        return self._generator(os.path.join(self.data_folder, "test.csv"))
+>>>>>>> dev
 
 
 class DbPedia(object):
@@ -210,17 +210,14 @@ class DbPedia(object):
             self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
-    def _generator(filename, chunk_size=512):
+    def _generator(filename):
 
-        f = open(filename, mode='r', encoding='utf-8')
-        reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
-        while True:
-            sentences, labels = [], []
-            i = 0
-
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
+<<<<<<< HEAD
                 sentences.append(sentence)
                 labels.append(label)
                 i += 1
@@ -246,6 +243,15 @@ class DbPedia(object):
             return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.data_folder, "test.csv"))
+=======
+                yield sentence, label
+
+    def load_train_data(self):
+        return self._generator(os.path.join(self.data_folder, "train.csv"))
+
+    def load_test_data(self):
+        return self._generator(os.path.join(self.data_folder, "test.csv"))
+>>>>>>> dev
 
 
 class YelpReview(object):
@@ -270,17 +276,14 @@ class YelpReview(object):
             self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
-    def _generator(filename, chunk_size=512):
+    def _generator(filename):
 
-        f = open(filename, mode='r', encoding='utf-8')
-        reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
-        while True:
-            sentences, labels = [], []
-            i = 0
-
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
+<<<<<<< HEAD
                 sentences.append(sentence)
                 labels.append(label)
                 i += 1
@@ -306,6 +309,15 @@ class YelpReview(object):
             return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.data_folder, "test.csv"))
+=======
+                yield sentence, label
+
+    def load_train_data(self):
+        return self._generator(os.path.join(self.data_folder, "train.csv"))
+
+    def load_test_data(self):
+        return self._generator(os.path.join(self.data_folder, "test.csv"))
+>>>>>>> dev
 
 
 class YelpPolarity(object):
@@ -330,17 +342,14 @@ class YelpPolarity(object):
             self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
-    def _generator(filename, chunk_size=512):
+    def _generator(filename):
 
-        f = open(filename, mode='r', encoding='utf-8')
-        reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
-        while True:
-            sentences, labels = [], []
-            i = 0
-
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
+<<<<<<< HEAD
                 sentences.append(sentence)
                 labels.append(label)
                 i += 1
@@ -366,6 +375,15 @@ class YelpPolarity(object):
             return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.data_folder, "test.csv"))
+=======
+                yield sentence, label
+
+    def load_train_data(self):
+        return self._generator(os.path.join(self.data_folder, "train.csv"))
+
+    def load_test_data(self):
+        return self._generator(os.path.join(self.data_folder, "test.csv"))
+>>>>>>> dev
 
 
 class AmazonReview(object):
@@ -390,17 +408,14 @@ class AmazonReview(object):
             self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
-    def _generator(filename, chunk_size=512):
+    def _generator(filename):
 
-        f = open(filename, mode='r', encoding='utf-8')
-        reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
-        while True:
-            sentences, labels = [], []
-            i = 0
-
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
+<<<<<<< HEAD
                 sentences.append(sentence)
                 labels.append(label)
                 i += 1
@@ -426,6 +441,15 @@ class AmazonReview(object):
             return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.data_folder, "test.csv"))
+=======
+                yield sentence, label
+
+    def load_train_data(self):
+        return self._generator(os.path.join(self.data_folder, "train.csv"))
+
+    def load_test_data(self):
+        return self._generator(os.path.join(self.data_folder, "test.csv"))
+>>>>>>> dev
 
 
 class AmazonPolarity(object):
@@ -450,17 +474,14 @@ class AmazonPolarity(object):
             self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
-    def _generator(filename, chunk_size=512):
+    def _generator(filename):
 
-        f = open(filename, mode='r', encoding='utf-8')
-        reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
-        while True:
-            sentences, labels = [], []
-            i = 0
-
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
+<<<<<<< HEAD
                 sentences.append(sentence)
                 labels.append(label)
                 i += 1
@@ -486,6 +507,15 @@ class AmazonPolarity(object):
             return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.data_folder, "test.csv"))
+=======
+                yield sentence, label
+
+    def load_train_data(self):
+        return self._generator(os.path.join(self.data_folder, "train.csv"))
+
+    def load_test_data(self):
+        return self._generator(os.path.join(self.data_folder, "test.csv"))
+>>>>>>> dev
 
 
 class SoguNews(object):
@@ -510,17 +540,14 @@ class SoguNews(object):
             self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
-    def _generator(filename, chunk_size=512):
+    def _generator(filename):
 
-        f = open(filename, mode='r', encoding='utf-8')
-        reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
-        while True:
-            sentences, labels = [], []
-            i = 0
-
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
+<<<<<<< HEAD
                 sentences.append(sentence)
                 labels.append(label)
                 i += 1
@@ -546,6 +573,15 @@ class SoguNews(object):
             return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.data_folder, "test.csv"))
+=======
+                yield sentence, label
+
+    def load_train_data(self):
+        return self._generator(os.path.join(self.data_folder, "train.csv"))
+
+    def load_test_data(self):
+        return self._generator(os.path.join(self.data_folder, "test.csv"))
+>>>>>>> dev
 
 
 class YahooAnswer(object):
@@ -570,17 +606,14 @@ class YahooAnswer(object):
             self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
-    def _generator(filename, chunk_size=512):
+    def _generator(filename):
 
-        f = open(filename, mode='r', encoding='utf-8')
-        reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
-        while True:
-            sentences, labels = [], []
-            i = 0
-
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
             for line in reader:
                 sentence = "{} {}".format(line['title'], line['description'])
                 label = int(line['label']) - 1
+<<<<<<< HEAD
                 sentences.append(sentence)
                 labels.append(label)
                 i += 1
@@ -606,6 +639,15 @@ class YahooAnswer(object):
             return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.data_folder, "test.csv"))
+=======
+                yield sentence, label
+
+    def load_train_data(self):
+        return self._generator(os.path.join(self.data_folder, "train.csv"))
+
+    def load_test_data(self):
+        return self._generator(os.path.join(self.data_folder, "test.csv"))
+>>>>>>> dev
 
 
 class Imdb(object):
@@ -629,17 +671,14 @@ class Imdb(object):
             self._ = get_file(self.data_name, origin=self.url, untar=True, cache_subdir=self.data_folder)
 
     @staticmethod
-    def _generator(filename, chunk_size=512):
+    def _generator(filename):
 
-        f = open(filename, mode='r', encoding='utf-8')
-        reader = csv.DictReader(f, quotechar='"')
-        while True:
-            sentences, labels = [], []
-            i = 0
-
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, quotechar='"')
             for line in reader:
                 sentence = line['sentence']
                 label = int(line['label'])
+<<<<<<< HEAD
                 sentences.append(sentence)
                 labels.append(label)
                 i += 1
@@ -665,6 +704,16 @@ class Imdb(object):
             return self._generator(os.path.join(self.data_folder, "test.csv"), chunk_size=chunk_size)
         else:
             self._generator(os.path.join(self.data_folder, "test.csv"))
+=======
+                # if sentence and label:
+                yield sentence, label
+
+    def load_train_data(self):
+        return self._generator(os.path.join(self.data_folder, "train.csv"))
+
+    def load_test_data(self):
+        return self._generator(os.path.join(self.data_folder, "test.csv"))
+>>>>>>> dev
 
 
 def load_datasets(names=["ag_news", "imdb"]):
@@ -702,6 +751,7 @@ def load_datasets(names=["ag_news", "imdb"]):
 if __name__ == "__main__":
 
     names = [
+        'imdb',
         'ag_news',
         'db_pedia',
         'yelp_review',
@@ -710,26 +760,24 @@ if __name__ == "__main__":
         'amazon_polarity',
         'sogu_news',
         'yahoo_answer',
-        'imdb',
+        
     ]
 
     for name in names:
         print("name: {}".format(name))
         dataset = load_datasets(names=[name])[0]
         # train data generator
-        tr_gen = dataset.load_train_data(chunk_size=512)
+        gen = dataset.load_train_data()
         tr_sentences, labels = [], []
-        for x, y in tr_gen:
-            tr_sentences.extend(x)
-            labels.extend(y)
+        for x, y in gen:
+            tr_sentences.append(x)
+            labels.append(y)
         print(" train: (samples/labels) = ({}/{})".format(len(tr_sentences), len(labels)))
 
         # test data generator
-        tr_gen = dataset.load_test_data(chunk_size=2048)
+        gen = dataset.load_test_data()
         te_sentences, labels = [], []
-        for x, y in tr_gen:
-            te_sentences.extend(x)
-            labels.extend(y)
+        for x, y in gen:
+            te_sentences.append(x)
+            labels.append(y)
         print(" test: (samples/labels) = ({}/{})".format(len(te_sentences), len(labels)))
-
-
