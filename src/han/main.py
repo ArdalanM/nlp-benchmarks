@@ -39,6 +39,7 @@ def get_args():
     parser.add_argument("--data_folder", type=str, default="datasets/imdb/han")
     parser.add_argument("--model_folder", type=str, default="models/han/imdb")
     parser.add_argument("--pretrain",action="store_true", default=False, help="pre train embeddings with word2vec (gensim required)")
+    parser.add_argument("--language", type=str, default="en", help="language used by spacy to find sentence boundaries")
     parser.add_argument('--max_feats', type=int, default=100000, help="vocabulary size")
     parser.add_argument('--max_sents', type=int, default=-1, help="max number of sentences per example")
     parser.add_argument('--max_words', type=int, default=-1, help="max word length")
@@ -59,35 +60,33 @@ def get_args():
 
 class Preprocessing():
 
-    def __init__(self, batch_size=None, n_threads=8, dataset=None):
+    def __init__(self, batch_size=None, n_threads=8, dataset=None, language='en'):
         self.batch_size = batch_size
         self.n_threads = n_threads
+        self.language = language
 
         self.dataset=dataset
         
-        self.nlp = spacy.load('en', disable=['tagger', 'parser', 'ner', 'tokenizer','tensorizer', 'similarity', 'textcat', 'sbd', 'merge_noun_chunks', 'merge_entities'])
+        self.nlp = spacy.load(self.language, disable=['tagger', 'parser', 'ner', 'tokenizer','tensorizer', 'similarity', 'textcat', 'sbd', 'merge_noun_chunks', 'merge_entities'])
         self.nlp.add_pipe(self.nlp.create_pipe('sentencizer'))
-        self.nlp.add_pipe(self.to_array_comp)
-
-    def to_array_comp(self, doc):
-        return [[w.orth_ for w in s] for s in doc.sents]
 
     def __iter__(self):
-        gen = self.dataset.load_train_data()
+        self.gen = yield_index(self.dataset.load_train_data(), 0)
         try:
-            for review, _ in gen:
-                for sentence in re.split(self.pattern, review):
-                    yield sentence.split()
-        except StopIteration:
-            gen = self.dataset.load_train_data()
+            reviews = self.nlp.pipe(self.gen, batch_size=self.batch_size, n_threads=self.n_threads)
+            for doc in reviews:
+                yield [token.text for token in doc if len(token.text.strip()) > 0]
+        except: 
+            self.gen = yield_index(self.dataset.load_train_data(), 0)
 
     def transform(self, sentences):
         """
         sentences: list(str) iterator
         output: list(list(str)) iterator
         """
-        output = self.nlp.pipe(sentences, batch_size=self.batch_size, n_threads=self.n_threads)
-        return output
+        reviews = self.nlp.pipe(sentences, batch_size=self.batch_size, n_threads=self.n_threads)
+        for doc in reviews:
+            yield [[w.text for w in s] for s in doc.sents]
 
 
 class Vectorizer():
@@ -281,7 +280,7 @@ def save(net,dic,path):
 
 
 def load_embeddings(filepath, offset=0):
-    wv = KeyedVectors.load_word2vec_format(filepath, binary=False)
+    wv = KeyedVectors.load_word2vec_format(filepath)
 
     wdict = {word:i for i, word in tqdm(enumerate(wv.index2word, offset), desc="word indexing", total=len(wv.index2word))}
     tensor = torch.FloatTensor(wv.vectors)
@@ -314,7 +313,7 @@ if __name__ == "__main__":
 
     wdict_path = "{}/word_dict.pkl".format(opt.data_folder)
 
-    embedding_path = "{}/word_embeddings".format(opt.data_folder)
+    embedding_path = "{}/word_embeddings.txt".format(opt.data_folder)
 
 
     # check if datasets exist
@@ -357,7 +356,7 @@ if __name__ == "__main__":
     else:
         logger.info("Creating datasets")
         n_tr_samples = np.sum([1 for _ in tqdm(dataset.load_train_data(), desc="counting train samples")])
-        n_te_samples = np.sum([1 for _ in tqdm(dataset.load_train_data(), desc="counting test samples")])
+        n_te_samples = np.sum([1 for _ in tqdm(dataset.load_test_data(), desc="counting test samples")])
         logger.info("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
 
         vecto = Vectorizer(max_sent_len=opt.max_sents, max_word_len=opt.max_words)
@@ -365,11 +364,11 @@ if __name__ == "__main__":
         if opt.pretrain:
             logger.info("  -unsupervised pre training")
             import gensim
-
+            
             prepro = Preprocessing(dataset=dataset)
 
             logger.info("  - train word2vec")
-            w2vmodel = gensim.models.Word2Vec(prepro, size=200, window=5, min_count=5, iter=10, max_vocab_size=10000000, workers=opt.nthreads)
+            w2vmodel = gensim.models.Word2Vec(prepro, size=200, window=5, min_count=5, iter=5, max_vocab_size=10000000, workers=opt.nthreads)
             
             logger.info("  - save embbedings: {}".format(embedding_path))
             w2vmodel.wv.save_word2vec_format(embedding_path,total_vec=len(w2vmodel.wv.vocab))  
