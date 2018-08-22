@@ -15,7 +15,6 @@ import argparse
 import numpy as np
 import torch.nn as nn
 import pickle as pkl
-from nltk import sent_tokenize, word_tokenize
 
 from tqdm import tqdm
 from collections import Counter
@@ -60,11 +59,9 @@ def get_args():
 
 class Preprocessing():
 
-    def __init__(self, batch_size=None, n_threads=8, delimiters=(';', '\n', '.'), dataset=None):
+    def __init__(self, batch_size=None, n_threads=8, dataset=None):
         self.batch_size = batch_size
         self.n_threads = n_threads
-        self.delimiters = [re.escape(x) for x in delimiters]
-        self.pattern = re.compile("|".join(self.delimiters))
 
         self.dataset=dataset
         
@@ -75,18 +72,6 @@ class Preprocessing():
     def to_array_comp(self, doc):
         return [[w.orth_ for w in s] for s in doc.sents]
 
-    def transform_split(self,sentences):
-        """
-        sentences: list(str) iterator
-        output: list(list(str)) iterator
-        """
-        
-        for review in sentences:
-            yield [sentence.split() for sentence in re.split(self.pattern, review) if len(sentence) > 0]
-
-    def transform(self, sentences):
-        return self.transform_spacy(sentences)
-    
     def __iter__(self):
         gen = self.dataset.load_train_data()
         try:
@@ -96,7 +81,7 @@ class Preprocessing():
         except StopIteration:
             gen = self.dataset.load_train_data()
 
-    def transform_spacy(self, sentences):
+    def transform(self, sentences):
         """
         sentences: list(str) iterator
         output: list(list(str)) iterator
@@ -104,9 +89,6 @@ class Preprocessing():
         output = self.nlp.pipe(sentences, batch_size=self.batch_size, n_threads=self.n_threads)
         return output
 
-    def transform_nltk(self, sentences):
-        for review in sentences:
-            yield [word_tokenize(sentence) for sentence in sent_tokenize(review) if len(sentence) > 0]
 
 class Vectorizer():
     def __init__(self,word_dict=None, max_sent_len=8, max_word_len=32):
@@ -400,7 +382,7 @@ if __name__ == "__main__":
             vecto.word_dict = wdict
         
         else:
-            prepro = Preprocessing()
+            prepro = Preprocessing(batch_size=opt.test_batch_size, n_threads=opt.nthreads)
             logger.info("  - fit")
             tr_sentences = yield_index(dataset.load_train_data(), 0)
             vecto.fit(prepro.transform(tr_sentences), max_words=opt.max_feats, n_samples=n_tr_samples)
