@@ -38,7 +38,7 @@ def get_args():
     parser.add_argument("--dataset", type=str, default='imdb')
     parser.add_argument("--data_folder", type=str, default="datasets/imdb/han")
     parser.add_argument("--model_folder", type=str, default="models/han/imdb")
-    parser.add_argument("--pretrain",action="store_true", default=True, help="pre train embeddings with word2vec (gensim required)")
+    parser.add_argument("--pretrain",action="store_true", default=False, help="pre train embeddings with word2vec (gensim required)")
     parser.add_argument('--max_feats', type=int, default=100000, help="vocabulary size")
     parser.add_argument('--max_sents', type=int, default=-1, help="max number of sentences per example")
     parser.add_argument('--max_words', type=int, default=-1, help="max word length")
@@ -369,7 +369,7 @@ if __name__ == "__main__":
             prepro = Preprocessing(dataset=dataset)
 
             logger.info("  - train word2vec")
-            w2vmodel = gensim.models.Word2Vec(prepro, size=200, window=5, min_count=5, iter=2, max_vocab_size=10000000, workers=opt.nthreads)
+            w2vmodel = gensim.models.Word2Vec(prepro, size=200, window=5, min_count=5, iter=10, max_vocab_size=10000000, workers=opt.nthreads)
             
             logger.info("  - save embbedings: {}".format(embedding_path))
             w2vmodel.wv.save_word2vec_format(embedding_path,total_vec=len(w2vmodel.wv.vocab))  
