@@ -34,8 +34,7 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 9 layers  |                |                |
 | VDCNN 17 layers |                |                |
 | VDCNN 29 layers |                |                |
-| HAN             |                |                |
-|                 |                |        90.5    |
+| HAN             |                |       90.5     |
 
 
 ### Ag news 
