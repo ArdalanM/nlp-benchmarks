@@ -87,6 +87,6 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 9 layers  |61.96           | 61.18          |
 | VDCNN 17 layers |62.59           |                |
 | VDCNN 29 layers |64.26           |  62.73         |
-| HAN             |                |                |
+| HAN             |                |  63.           |
 |                 |                |                |
  
