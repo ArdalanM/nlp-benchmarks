@@ -15,6 +15,7 @@ import argparse
 import numpy as np
 import torch.nn as nn
 import pickle as pkl
+from nltk import sent_tokenize, word_tokenize
 
 from tqdm import tqdm
 from collections import Counter
@@ -39,7 +40,7 @@ def get_args():
     parser.add_argument("--data_folder", type=str, default="datasets/imdb/han")
     parser.add_argument("--model_folder", type=str, default="models/han/imdb")
     parser.add_argument("--pretrain",action="store_true", default=True, help="pre train embeddings with word2vec (gensim required)")
-    parser.add_argument('--max_feats', type=int, default=10000, help="vocabulary size")
+    parser.add_argument('--max_feats', type=int, default=100000, help="vocabulary size")
     parser.add_argument('--max_sents', type=int, default=-1, help="max number of sentences per example")
     parser.add_argument('--max_words', type=int, default=-1, help="max word length")
     parser.add_argument("--solver_type", type=str, choices=['sgd', 'adam'], default='adam')
@@ -67,8 +68,14 @@ class Preprocessing():
 
         self.dataset=dataset
         
+        self.nlp = spacy.load('en', disable=['tagger', 'parser', 'ner', 'tokenizer','tensorizer', 'similarity', 'textcat', 'sbd', 'merge_noun_chunks', 'merge_entities'])
+        self.nlp.add_pipe(self.nlp.create_pipe('sentencizer'))
+        self.nlp.add_pipe(self.to_array_comp)
 
-    def transform(self, sentences):
+    def to_array_comp(self, doc):
+        return [[w.orth_ for w in s] for s in doc.sents]
+
+    def transform_split(self,sentences):
         """
         sentences: list(str) iterator
         output: list(list(str)) iterator
@@ -77,6 +84,9 @@ class Preprocessing():
         for review in sentences:
             yield [sentence.split() for sentence in re.split(self.pattern, review) if len(sentence) > 0]
 
+    def transform(self, sentences):
+        return self.transform_spacy(sentences)
+    
     def __iter__(self):
         gen = self.dataset.load_train_data()
         try:
@@ -86,6 +96,17 @@ class Preprocessing():
         except StopIteration:
             gen = self.dataset.load_train_data()
 
+    def transform_spacy(self, sentences):
+        """
+        sentences: list(str) iterator
+        output: list(list(str)) iterator
+        """
+        output = self.nlp.pipe(sentences, batch_size=self.batch_size, n_threads=self.n_threads)
+        return output
+
+    def transform_nltk(self, sentences):
+        for review in sentences:
+            yield [word_tokenize(sentence) for sentence in sent_tokenize(review) if len(sentence) > 0]
 
 class Vectorizer():
     def __init__(self,word_dict=None, max_sent_len=8, max_word_len=32):
@@ -252,12 +273,13 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
             cm += metrics.confusion_matrix(y_true, y_pred, labels=range(nclasses))
             dic_metrics = get_metrics(cm, list_metrics)
             
+            loss =  criterion(out, data[1]) 
+            epoch_loss += loss.item()
+            dic_metrics['logloss'] = epoch_loss/(iteration+1)
+
             if optimize:
-                loss =  criterion(out, data[1]) 
-                epoch_loss += loss.item()
                 loss.backward()
                 optimizer.step()
-                dic_metrics['logloss'] = epoch_loss/(iteration+1)
                 dic_metrics['lr'] = optimizer.state_dict()['param_groups'][0]['lr']
 
             pbar.update(1)
@@ -378,7 +400,7 @@ if __name__ == "__main__":
             vecto.word_dict = wdict
         
         else:
-
+            prepro = Preprocessing()
             logger.info("  - fit")
             tr_sentences = yield_index(dataset.load_train_data(), 0)
             vecto.fit(prepro.transform(tr_sentences), max_words=opt.max_feats, n_samples=n_tr_samples)
@@ -455,7 +477,7 @@ if __name__ == "__main__":
 
     for epoch in range(1, opt.epochs + 1):
         train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, scheduler=scheduler, criterion=criterion)
-        train(epoch,net, te_loader, device, msg="testing ")
+        train(epoch,net, te_loader, device, msg="testing ", criterion=criterion)
 
         if (epoch % opt.snapshot_interval == 0) and (epoch > 0):
             path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
