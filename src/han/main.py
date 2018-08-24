@@ -368,7 +368,7 @@ if __name__ == "__main__":
             prepro = Preprocessing(dataset=dataset)
 
             logger.info("  - train word2vec")
-            w2vmodel = gensim.models.Word2Vec(prepro, size=200, window=5, min_count=5, iter=5, max_vocab_size=10000000, workers=opt.nthreads)
+            w2vmodel = gensim.models.Word2Vec(prepro, size=200, window=5, min_count=5, iter=2, max_vocab_size=10000000, workers=opt.nthreads)
             
             logger.info("  - save embbedings: {}".format(embedding_path))
             w2vmodel.wv.save_word2vec_format(embedding_path,total_vec=len(w2vmodel.wv.vocab))  
