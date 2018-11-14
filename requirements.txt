@@ -8,3 +8,4 @@ torch
 torchvision
 requests
 tensorboard_logger
+tqdm
