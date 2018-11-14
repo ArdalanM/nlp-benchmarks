@@ -11,6 +11,7 @@ import tarfile
 import shutil
 import hashlib
 import pandas as pd
+from tqdm import tqdm
 from urllib.request import urlretrieve
 from urllib.error import URLError
 from urllib.error import HTTPError
@@ -492,7 +493,6 @@ def load_datasets(names=["ag_news", "imdb"]):
         datasets.append(YahooAnswer())
     if 'imdb' in names:
         datasets.append(Imdb())
-
     return datasets
 
 
@@ -508,24 +508,24 @@ if __name__ == "__main__":
         'amazon_polarity',
         'sogu_news',
         'yahoo_answer',
-        
     ]
 
     for name in names:
         print("name: {}".format(name))
         dataset = load_datasets(names=[name])[0]
+        
         # train data generator
         gen = dataset.load_train_data()
-        tr_sentences, labels = [], []
-        for x, y in gen:
-            tr_sentences.append(x)
-            labels.append(y)
-        print(" train: (samples/labels) = ({}/{})".format(len(tr_sentences), len(labels)))
+        sentences, labels = [], []
+        for sentence, label in tqdm(gen):
+            sentences.append(sentence)
+            labels.append(label)
+        print(" train: (sentences,labels) = ({}/{})".format(len(sentences), len(labels)))
 
         # test data generator
         gen = dataset.load_test_data()
-        te_sentences, labels = [], []
-        for x, y in gen:
-            te_sentences.append(x)
-            labels.append(y)
-        print(" test: (samples/labels) = ({}/{})".format(len(te_sentences), len(labels)))
+        sentences, labels = [], []
+        for sentence, label in tqdm(gen):
+            sentences.append(sentence)
+            labels.append(label)
+        print(" train: (sentences,labels) = ({}/{})".format(len(sentences), len(labels)))
