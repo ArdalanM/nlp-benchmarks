@@ -10,7 +10,6 @@ import csv
 import tarfile
 import shutil
 import hashlib
-import pandas as pd
 from tqdm import tqdm
 from urllib.request import urlretrieve
 from urllib.error import URLError
