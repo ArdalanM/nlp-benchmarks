@@ -43,10 +43,11 @@ def get_args():
     parser.add_argument("--maxlen", type=int, default=1024)
     parser.add_argument('--shortcut', action='store_true', default=False)
     parser.add_argument("--batch_size", type=int, default=128, help="number of example read by the gpu")
-    parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--solver", type=str, default="adam", help="'agd' or 'adam'")
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--solver", type=str, default="sgd", help="'agd' or 'adam'")
     parser.add_argument("--lr", type=float, default=0.01)
-    parser.add_argument("--lr_halve_interval", type=float, default=None, help="Number of iterations before halving learning rate")
+    parser.add_argument("--lr_halve_interval", type=float, default=10, help="Number of iterations before halving learning rate")
+    parser.add_argument("--momentum", type=float, default=0.9, help="Number of iterations before halving learning rate")
     parser.add_argument("--snapshot_interval", type=int, default=1)
     parser.add_argument("--gamma", type=float, default=0.9)
     parser.add_argument("--gpuid", type=int, default=0)
@@ -335,7 +336,7 @@ if __name__ == "__main__":
     assert opt.solver in ['sgd', 'adam']
     if opt.solver == 'sgd':
         print(" - optimizer: sgd")
-        optimizer = torch.optim.SGD(net.parameters(), lr = opt.lr)
+        optimizer = torch.optim.SGD(net.parameters(), lr = opt.lr, momentum=opt.momentum)
     elif opt.solver == 'adam':
         print(" - optimizer: adam")
         optimizer = torch.optim.Adam(net.parameters(), lr = opt.lr)    
