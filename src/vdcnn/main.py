@@ -68,42 +68,22 @@ class Preprocessing():
 
  
 class CharVectorizer():
-    def __init__(self,char_dict=None, max_features=100, maxlen=10, padding='pre', truncating='pre'):
-        self.char_dict = char_dict
-        self.max_features = max_features
+    def __init__(self, maxlen=10, padding='pre', truncating='pre', alphabet="""abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:’"/| #$%ˆ&*˜‘+=<>()[]{}"""):
+        
+        self.alphabet = alphabet
         self.maxlen = maxlen
         self.padding = padding
         self.truncating = truncating
-        self.char_counter = Counter()
 
-        self.n_transform = 0
-
-        if self.char_dict:
-            self.n_transform += 1
-    
-    def partial_fit(self, sentences):
-        """
-        sentences: list of list
-        """
-        for sentence in sentences:
-            self.char_counter.update(sentence)
+        self.char_dict = {'_pad_': 0, '_unk_': 1, ' ': 2}
+        for i, k in enumerate(self.alphabet, start=len(self.char_dict)):
+            self.char_dict[k] = i
 
     def transform(self,sentences):
         """
         sentences: list of string
         list of review, review is a list of sequences, sequences is a list of int
         """
-
-        if self.n_transform == 0:
-            self.char_dict =  {c: i for i,(c,_) in enumerate(self.char_counter.most_common(self.max_features),start=2)}
-            self.char_dict["_pad_"] = 0
-            self.char_dict["_unk_"] = 1
-            print("Dictionnary has {} words".format(len(self.char_dict)))
-        self.n_transform += 1
-        
-        assert self.char_dict, "No dictionnary to vectorize text \n-> call method build_dict \n-> or set a word_dict attribute \n first"
-        
-
         sequences = []
 
         for sentence in sentences:
@@ -131,8 +111,6 @@ class CharVectorizer():
     
     def get_params(self):
         params = vars(self)
-        if 'char_counter' in params:
-            del params['char_counter'] 
         return params
 
 
@@ -251,12 +229,11 @@ def predict(net,dataset,device,msg="prediction"):
     return np.concatenate(y_probs, 0), np.concatenate(y_trues, 0).reshape(-1, 1)
 
 
-def save(net, txt_dict, path):
+def save(net, path):
     """
     Saves a model's state and it's embedding dic by piggybacking torch's save function
     """
     dict_m = net.state_dict()
-    dict_m["txt_dict"] = txt_dict
     torch.save(dict_m,path)
 
 
@@ -282,45 +259,32 @@ if __name__ == "__main__":
     n_classes = dataset.n_classes
     print("dataset: {}, n_classes: {}".format(dataset_name, n_classes))
 
+    tr_path =  "{}/train.lmdb".format(opt.data_folder)
+    te_path = "{}/test.lmdb".format(opt.data_folder)
     
-    variables = {
-        'train': {'var': None, 'path': "{}/train.lmdb".format(opt.data_folder)},
-        'test': {'var': None, 'path': "{}/test.lmdb".format(opt.data_folder)},
-        'txt_dict': {'var': None, 'path': "{}/txt_dict.pkl".format(opt.data_folder)},
-    }
-
     # check if datasets exis
-    all_exist = True if os.path.exists(variables['txt_dict']['path']) else False
-    if all_exist:
-        print("  - Loading: {}".format(variables['txt_dict']['path']))
-        variables['txt_dict']['var'] = pkl.load(open(variables['txt_dict']['path'],"rb"))
-        n_tokens = len(variables['txt_dict']['var']['char_dict'])
-    else:
+    all_exist = True if (os.path.exists(tr_path) and os.path.exists(te_path)) else False
+
+    preprocessor = Preprocessing()
+    vectorizer = CharVectorizer(maxlen=opt.maxlen, padding='post', truncating='post')
+    n_tokens = len(vectorizer.char_dict)
+
+    if not all_exist:
         print("Creating datasets")
         tr_sentences = [txt for txt,lab in tqdm(dataset.load_train_data(), desc="counting train samples")]
         te_sentences = [txt for txt,lab in tqdm(dataset.load_test_data(), desc="counting test samples")]
             
         n_tr_samples = len(tr_sentences)
         n_te_samples = len(te_sentences)
-
-        print("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
-        
-        ################ 
-        # fit on train #
-        ################      
-        preprocessor = Preprocessing()
-        vectorizer = CharVectorizer(max_features=None, maxlen=opt.maxlen, padding='post', truncating='post')
-
-        for sentence, label in tqdm(dataset.load_train_data(), desc="fit on train...", total= n_tr_samples):
-            s_prepro = preprocessor.transform([sentence])
-            vectorizer.partial_fit(s_prepro)
-
         del tr_sentences
         del te_sentences
+
+        print("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
+
         ###################
         # transform train #
         ###################
-        with lmdb.open(variables['train']['path'], map_size=1099511627776) as env:
+        with lmdb.open(tr_path, map_size=1099511627776) as env:
             with env.begin(write=True) as txn:
                 for i, (sentence, label) in enumerate(tqdm(dataset.load_train_data(), desc="transform train...", total= n_tr_samples)):
 
@@ -338,7 +302,7 @@ if __name__ == "__main__":
         ##################
         # transform test #
         ##################
-        with lmdb.open(variables['test']['path'], map_size=1099511627776) as env:
+        with lmdb.open(te_path, map_size=1099511627776) as env:
             with env.begin(write=True) as txn:
                 for i, (sentence, label) in enumerate(tqdm(dataset.load_test_data(), desc="transform test...", total= n_te_samples)):
 
@@ -353,17 +317,9 @@ if __name__ == "__main__":
 
                 txn.put('nsamples'.encode(), list_to_bytes([i+1]))
 
-        variables['txt_dict']['var'] = vectorizer.get_params()
-        n_tokens = len(variables['txt_dict']['var']['char_dict'])
-
-        ###############
-        # saving data #
-        ###############     
-        print("  - saving to {}".format(variables['txt_dict']['path']))
-        pkl.dump(variables['txt_dict']['var'],open(variables['txt_dict']['path'],"wb"))
-        
-    tr_loader = DataLoader(TupleLoader(variables['train']['path']), batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=True)
-    te_loader = DataLoader(TupleLoader(variables['test']['path']), batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=False)
+                
+    tr_loader = DataLoader(TupleLoader(tr_path), batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=True)
+    te_loader = DataLoader(TupleLoader(te_path), batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=False)
 
     # select cpu or gpu
     device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
@@ -390,10 +346,10 @@ if __name__ == "__main__":
         if (epoch % opt.snapshot_interval == 0) and (epoch > 0):
             path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
             print("snapshot of model saved as {}".format(path))
-            save(net, variables['txt_dict']['var'], path=path)
+            save(net, path=path)
 
 
     if opt.epochs > 0:
         path = "{}/model_epoch_{}".format(opt.model_folder,opt.epochs)
         print("snapshot of model saved as {}".format(path))
-        save(net, variables['txt_dict']['var'], path=path)
+        save(net, path=path)
