@@ -44,8 +44,9 @@ def get_args():
     parser.add_argument('--shortcut', action='store_true', default=False)
     parser.add_argument("--batch_size", type=int, default=128, help="number of example read by the gpu")
     parser.add_argument("--epochs", type=int, default=1000)
+    parser.add_argument("--solver", type=str, default="adam", help="'agd' or 'adam'")
     parser.add_argument("--lr", type=float, default=0.01)
-    parser.add_argument("--lr_halve_interval", type=float, default=100, help="Number of iterations before halving learning rate")
+    parser.add_argument("--lr_halve_interval", type=float, default=None, help="Number of iterations before halving learning rate")
     parser.add_argument("--snapshot_interval", type=int, default=1)
     parser.add_argument("--gamma", type=float, default=0.9)
     parser.add_argument("--gpuid", type=int, default=0)
@@ -331,11 +332,16 @@ if __name__ == "__main__":
     criterion = torch.nn.CrossEntropyLoss()
     net.to(device)
 
-    print(" - optimizer: sgd")
-    optimizer = torch.optim.SGD(net.parameters(), lr = opt.lr)    
-
+    assert opt.solver in ['sgd', 'adam']
+    if opt.solver == 'sgd':
+        print(" - optimizer: sgd")
+        optimizer = torch.optim.SGD(net.parameters(), lr = opt.lr)
+    elif opt.solver == 'adam':
+        print(" - optimizer: adam")
+        optimizer = torch.optim.Adam(net.parameters(), lr = opt.lr)    
+        
     scheduler = None
-    if opt.lr_halve_interval > 0:
+    if opt.lr_halve_interval and  opt.lr_halve_interval > 0:
         print(" - lr scheduler: {}".format(opt.lr_halve_interval))
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, opt.lr_halve_interval, gamma=opt.gamma, last_epoch=-1)
         
