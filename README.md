@@ -21,7 +21,7 @@
 
 Thanks to [@cedias](https://github.com/cedias) for his **HAN** implentation ([here](https://github.com/cedias/Hierarchical-Sentiment))
 
-han weights at prediction:
+han word (red) and sentence (blue) attention weight at prediction:
 
 ![](https://media.giphy.com/media/1QgFc8oW7m600Cvv5D/giphy.gif)
 
