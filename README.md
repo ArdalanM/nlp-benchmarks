@@ -24,6 +24,7 @@ Thanks to [@cedias](https://github.com/cedias) for his **HAN** implentation ([he
 han weights at prediction:
 
 ![](https://media.giphy.com/media/1QgFc8oW7m600Cvv5D/giphy.gif)
+
 ## Experiments:
 Results are reported as follows:  (i) / (ii)
  - (i): Test set accuracy reported by the paper  
