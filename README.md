@@ -15,13 +15,15 @@
 
 
 ## Models:
- - [1]: **CNN**: Character-level convolutional networks for text classification ([paper](https://arxiv.org/abs/1509.01626), [code](https://github.com/ArdalanM/nlp-benchmarks/blob/master/src/VDCNN.py))  
- - [2]: **VDCNN**: Very deep convolutional networks for text classification ([paper](https://arxiv.org/abs/1606.01781), [code](https://github.com/ArdalanM/nlp-benchmarks/blob/master/src/CNN.py))  
- - [3]: **HAN**: Hierarchical Attention Networks for Document Classification ([paper](https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf), [code]()  
+ - [1]: **CNN**: Character-level convolutional networks for text classification ([paper](https://arxiv.org/abs/1509.01626)) 
+ - [2]: **VDCNN**: Very deep convolutional networks for text classification ([paper](https://arxiv.org/abs/1606.01781))
+ - [3]: **HAN**: Hierarchical Attention Networks for Document Classification ([paper](https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf))
 
 Thanks to [@cedias](https://github.com/cedias) for his **HAN** implentation ([here](https://github.com/cedias/Hierarchical-Sentiment))
 
+han weights at prediction:
 
+![](https://media.giphy.com/media/1QgFc8oW7m600Cvv5D/giphy.gif)
 ## Experiments:
 Results are reported as follows:  (i) / (ii)
  - (i): Test set accuracy reported by the paper  
@@ -88,4 +90,3 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 29 layers |64.26           |  62.73         |
 | HAN             |                |  63.           |
 |                 |                |                |
- 
