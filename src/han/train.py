@@ -295,10 +295,10 @@ if __name__ == "__main__":
         if (epoch % opt.snapshot_interval == 0) and (epoch > 0):
             path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
             print("snapshot of model saved as {}".format(path))
-            save(net,n_tokens, path=path)
+            save(net,variables['txt_dict']['var'], path=path)
 
 
     if opt.epochs > 0:
         path = "{}/model_epoch_{}".format(opt.model_folder,opt.epochs)
         print("snapshot of model saved as {}".format(path))
-        save(net,n_tokens, path=path)
+        save(net,variables['txt_dict']['var'], path=path)
