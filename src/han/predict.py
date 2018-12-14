@@ -8,15 +8,14 @@
 import os
 import re
 import torch
-import spacy
 import argparse
 import torch.nn.functional as F
 
 from colr import color, Colr
 from torch.utils.data import DataLoader, Dataset
 
-from src.han.net import HAN
-from src.han.lib import Preprocessing, Vectorizer, tuple_batch, Vectorizer
+from net import HAN
+from lib import Preprocessing, Vectorizer, tuple_batch, Vectorizer
 
 
 def get_args():
@@ -96,10 +95,11 @@ class Prediction():
             result.append(str(w_colorized))
         return " ".join(result)
 
+
 if __name__ == "__main__":
 
     opt = get_args()
-    print(vars(opt))
+    # print(vars(opt))
 
     model_path = opt.model_path
     classes = opt.classes
