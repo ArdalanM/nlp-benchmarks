@@ -21,7 +21,9 @@
 
 Thanks to [@cedias](https://github.com/cedias) for his **HAN** implentation ([here](https://github.com/cedias/Hierarchical-Sentiment))
 
+han weights at prediction:
 
+![](https://media.giphy.com/media/1Bfxn4eE0LHtOJmoN6/giphy.gif)
 ## Experiments:
 Results are reported as follows:  (i) / (ii)
  - (i): Test set accuracy reported by the paper  
@@ -88,4 +90,3 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 29 layers |64.26           |  62.73         |
 | HAN             |                |  63.           |
 |                 |                |                |
- 
