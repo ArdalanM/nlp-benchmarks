@@ -261,7 +261,7 @@ if __name__ == "__main__":
         print("  - saving to {}".format(variables['txt_dict']['path']))
         pkl.dump(variables['txt_dict']['var'],open(variables['txt_dict']['path'],"wb"))
         
-    tr_loader = DataLoader(TupleLoader(variables['train']['path'], nthreads=None), batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, collate_fn=tuple_batch, pin_memory=True)
+    tr_loader = DataLoader(TupleLoader(variables['train']['path'], nthreads=None), batch_size=opt.batch_size, shuffle=True, num_workers=opt.nthreads, collate_fn=tuple_batch, pin_memory=True)
     te_loader = DataLoader(TupleLoader(variables['test']['path'], nthreads=None),  batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, collate_fn=tuple_batch, pin_memory=False)
 
     # select cpu or gpu

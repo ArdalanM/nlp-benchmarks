@@ -320,7 +320,7 @@ if __name__ == "__main__":
                 txn.put('nsamples'.encode(), list_to_bytes([i+1]))
 
                 
-    tr_loader = DataLoader(TupleLoader(tr_path), batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=True)
+    tr_loader = DataLoader(TupleLoader(tr_path), batch_size=opt.batch_size, shuffle=True, num_workers=opt.nthreads, pin_memory=True)
     te_loader = DataLoader(TupleLoader(te_path), batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=False)
 
     # select cpu or gpu
