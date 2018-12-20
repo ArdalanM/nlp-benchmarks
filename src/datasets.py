@@ -486,7 +486,7 @@ def load_datasets(names=["ag_news", "imdb"]):
         datasets.append(AmazonReview())
     if 'amazon_polarity' in names:
         datasets.append(AmazonPolarity())
-    if 'sogu_news' in names:
+    if 'sogou_news' in names:
         datasets.append(SoguNews())
     if 'yahoo_answer' in names:
         datasets.append(YahooAnswer())
