@@ -192,7 +192,7 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
 
             #metrics
             y_true = data[1].detach().cpu().numpy()
-            y_pred = ty_prob.max(1)[1]
+            y_pred = ty_prob.max(1)[1].cpu().numpy()
 
             cm += metrics.confusion_matrix(y_true, y_pred, labels=range(nclasses))
             dic_metrics = get_metrics(cm, list_metrics)
