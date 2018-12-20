@@ -47,7 +47,7 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 9 layers  |    90.17       |  89.22         |
 | VDCNN 17 layers |  90.61         |  90.00         |
 | VDCNN 29 layers |  91.27         |     90.43      |
-| HAN             |                |      91.7      |
+| HAN             |                |      92.4      |
 |                 |                |                |
 
 ### Sogu news
