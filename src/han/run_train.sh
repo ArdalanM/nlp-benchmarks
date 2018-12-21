@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 cd ../../
  
-dataset="ag_news"
+# dataset="ag_news"
 # dataset="imdb"
-# dataset="db_pedia"
+dataset="db_pedia"
 # dataset="yelp_review"
 # dataset="yelp_polarity"
 
@@ -13,9 +13,9 @@ solver_type="adam"
 batch_size="32"
 epochs=100
 lr=0.0001
-lr_halve_interval=3
+lr_halve_interval=10
 gamma=0.9
-snapshot_interval=3
+snapshot_interval=10
 gpuid=1
 nthreads=4
 
