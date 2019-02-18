@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 @author: 
-        - Charles-Emmanuel DIAS  <Charles-Emmanuel.Dias@lip6.fr>
         - Ardalan Mehrani <ardalan77400@gmail.com>
 @brief:
 """

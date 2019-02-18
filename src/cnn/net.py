@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-@author: DIAS Charles-Emmanuel <Charles-Emmanuel.Dias@lip6.fr>
+@author: Ardalan Mehrani <Ardalan77400@gmail.com>
 """
 
 import torch
