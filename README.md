@@ -43,7 +43,7 @@ Results are reported as follows:  (i) / (ii)
 ### Ag news 
 | Model           | paper accuracy | repo accuracy  |
 |:---------------:| :-------------:| :------------- |
-| CNN small       |    84.35       |87.10           |
+| CNN small       |    84.35       |88.30           |
 | VDCNN 9 layers  |    90.17       |  89.22         |
 | VDCNN 17 layers |  90.61         |  90.00         |
 | VDCNN 29 layers |  91.27         |     90.43      |
