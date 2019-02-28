@@ -96,7 +96,7 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
     cm = np.zeros((nclasses,nclasses), dtype=int)
 
     with tqdm(total=len(dataset),desc="Epoch {} - {}".format(epoch, msg)) as pbar:
-        for iteration, (tx,tidx, ty) in enumerate(dataset):
+        for iteration, (tx,tidx,ty) in enumerate(dataset):
 
             data = (tx,tidx,ty)
             data = [x.to(device) for x in data]
@@ -324,7 +324,6 @@ if __name__ == "__main__":
         pkl.dump(variables['params']['var'],open(variables['params']['path'],"wb"))
 
     maxlen = maxlen if opt.max_sequence_length == -1 else opt.max_sequence_length
-    maxlen += 1 # dunno why +1 works
     print("max_sequence_length = {}".format(maxlen))
     
     tr_loader = DataLoader(TupleLoader(variables['train']['path'], maxlen=maxlen), batch_size=opt.batch_size, shuffle=True, num_workers=opt.nthreads, pin_memory=True)
