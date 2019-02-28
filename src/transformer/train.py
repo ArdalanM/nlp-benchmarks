@@ -179,8 +179,13 @@ class TupleLoader(Dataset):
         xtxt = list_from_bytes(self.txn.get(('txt-%09d' % i).encode()), np.int)
         lab = list_from_bytes(self.txn.get(('lab-%09d' % i).encode()), np.int)[0]
 
+        if self.maxlen:
+            if len(xtxt) <= self.maxlen:
         # padded array
         xtxt = np.pad(xtxt, (0, self.maxlen-len(xtxt)), 'constant')
+            else:
+                xtxt = xtxt[:self.maxlen]
+                
 
         # getting position index of each word 
         xidx = np.array([idx+1 if w != 0 else 0 for idx, w in enumerate(xtxt)])
