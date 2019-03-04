@@ -17,11 +17,10 @@
 ## Models:
  - [1]: **CNN**: Character-level convolutional networks for text classification ([paper](https://arxiv.org/abs/1509.01626)) 
  - [2]: **VDCNN**: Very deep convolutional networks for text classification ([paper](https://arxiv.org/abs/1606.01781))
- - [3]: **HAN**: Hierarchical Attention Networks for Document Classification ([paper](https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf))
+ - [3]: **HAN**: Hierarchical Attention Networks for Document Classification ([paper](https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf)), thanks to [@cedias](https://github.com/cedias) for his **HAN** implentation ([here](https://github.com/cedias/Hierarchical-Sentiment))
+- [4]: **Transformer Encoder**: Attention Is All You Need (encoder part) ([paper](https://arxiv.org/abs/1706.03762)), inspired from Yu-Hsiang Huang's work ([here](https://github.com/jadore801120/attention-is-all-you-need-pytorch))
 
-Thanks to [@cedias](https://github.com/cedias) for his **HAN** implentation ([here](https://github.com/cedias/Hierarchical-Sentiment))
-
-han word (red) and sentence (blue) attention weight at prediction:
+HAN word (red) and sentence (blue) attention weight at prediction:
 
 ![](https://media.giphy.com/media/1QgFc8oW7m600Cvv5D/giphy.gif)
 
@@ -37,7 +36,8 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 9 layers  |                |                |
 | VDCNN 17 layers |                |                |
 | VDCNN 29 layers |                |                |
-| HAN             |                |       90.5     |
+| HAN             |                |    **90.5**    |
+| Transformer     |                |     84.1       |
 
 
 ### Ag news 
@@ -46,9 +46,11 @@ Results are reported as follows:  (i) / (ii)
 | CNN small       |    84.35       |88.30           |
 | VDCNN 9 layers  |    90.17       |  89.22         |
 | VDCNN 17 layers |  90.61         |  90.00         |
-| VDCNN 29 layers |  91.27         |     90.43      |
-| HAN             |                |      92.4      |
-|                 |                |                |
+| VDCNN 29 layers |  **91.27**     |     90.43      |
+| HAN             |                |      **92.4**  |
+| Transformer     |                |     91.7       |
+
+
 
 ### Sogu news
 | Model           | paper accuracy | repo accuracy  |
@@ -56,18 +58,18 @@ Results are reported as follows:  (i) / (ii)
 | CNN small       |   91.35        |   93.53        |
 | VDCNN 9 layers  |    96.42       |   93.50        |
 | VDCNN 17 layers |     96.49      |                |
-| VDCNN 29 layers |    96.64       | 87.90          |
-| HAN             |                |   96.          |
+| VDCNN 29 layers |    **96.64**     | 87.90          |
+| HAN             |                |   **96.**       |
 
 
 ### DBpedia
 | Model           | paper accuracy | repo accuracy  |
 |:---------------:| :-------------:| :------------- |
 | CNN small       |98.02           | 98.15          |
-| VDCNN 9 layers  |98.75           | 98.35          |
+| VDCNN 9 layers  | **98.75**      | 98.35          |
 | VDCNN 17 layers |98.02           | 98.15          |
 | VDCNN 29 layers |98.71           |                |
-| HAN             |                |   99.0         |
+| HAN             |                |   **99.0**     |
 |                 |                |                |
 
 
@@ -77,7 +79,7 @@ Results are reported as follows:  (i) / (ii)
 | CNN small       |                |                |
 | VDCNN 9 layers  |94.73           | 93.97          |
 | VDCNN 17 layers |94.95           | 94.73          |
-| VDCNN 29 layers |95.72           |  94.75         |
+| VDCNN 29 layers |**95.72**       |  **94.75**     |
 | HAN             |                |                |
 |                 |                |                |
 
@@ -88,6 +90,6 @@ Results are reported as follows:  (i) / (ii)
 | CNN small       |                |                |
 | VDCNN 9 layers  |61.96           | 61.18          |
 | VDCNN 17 layers |62.59           |                |
-| VDCNN 29 layers |64.26           |  62.73         |
-| HAN             |                |  63.           |
+| VDCNN 29 layers |**64.26**       |  62.73         |
+| HAN             |                |  **63.**       |
 |                 |                |                |
