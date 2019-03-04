@@ -38,7 +38,7 @@ def get_args():
     parser.add_argument("--attention_dim", type=int, default=64, help="")
     parser.add_argument("--n_heads", type=int, default=4, help="")
     parser.add_argument("--n_layers", type=int, default=6, help="")
-    parser.add_argument("--max_sequence_length", type=int, default=-1, help="if max_sequence_length = -1, it will be calculted on the train set")
+    parser.add_argument("--maxlen", type=int, default=1000, help="truncate longer sequence while training")
     parser.add_argument("--dropout", type=float, default=0.1, help="")
     parser.add_argument("--n_warmup_step", type=int, default=4000, help="")
     parser.add_argument("--batch_size", type=int, default=64, help="number of example read by the gpu")
@@ -156,13 +156,26 @@ def save(net, txt_dict, path):
     torch.save(dict_m,path)
 
 
+def collate_fn(l):
+    
+    Xs, idxs, y = zip(*l)
+    maxlen = max(map(len, Xs))
+    Xs = [np.pad(x, (0, maxlen-len(x)), 'constant') for x in Xs]
+    idxs = [np.pad(idx, (0, maxlen-len(idx)), 'constant') for idx in idxs]
+
+    tx = torch.LongTensor(Xs)
+    tidx = torch.LongTensor(idxs)
+    ty = torch.LongTensor(y)
+    
+    return tx,tidx,ty
+
+
 class TupleLoader(Dataset):
 
-    def __init__(self, path="", maxlen=None):
+    def __init__(self, path="", maxlen=1000):
         self.path = path
         self.env = lmdb.open(path, readonly=True, lock=False, readahead=False, meminit=False)
         self.txn = self.env.begin(write=False)
-
         self.maxlen = maxlen
 
     def __len__(self):
@@ -179,9 +192,7 @@ class TupleLoader(Dataset):
         xtxt = list_from_bytes(self.txn.get(('txt-%09d' % i).encode()), np.int)
         lab = list_from_bytes(self.txn.get(('lab-%09d' % i).encode()), np.int)[0]
         
-        if self.maxlen:
-            # padded array
-            xtxt = np.pad(xtxt, (0, self.maxlen-len(xtxt)), 'constant') if len(xtxt) <= self.maxlen else xtxt[:self.maxlen]
+        xtxt = xtxt[:self.maxlen]
                 
         # getting position index of each word 
         xidx = np.array([idx+1 if w != 0 else 0 for idx, w in enumerate(xtxt)])
@@ -249,7 +260,7 @@ if __name__ == "__main__":
 
     if all_exist:
         variables['params']['var'] = pkl.load(open(variables['params']['path'],"rb"))
-        maxlen = variables['params']['var']['longest_sequence']
+        longuest_sequence = variables['params']['var']['longest_sequence']
         n_tokens = len(variables['params']['var']['word_dict'])
 
     else:
@@ -310,7 +321,7 @@ if __name__ == "__main__":
                 txn.put('nsamples'.encode(), list_to_bytes([i+1]))
 
         variables['params']['var'] = vars(vecto)
-        maxlen = variables['params']['var']['longest_sequence']
+        longuest_sequence = variables['params']['var']['longest_sequence']
         n_tokens = len(variables['params']['var']['word_dict'])
 
         ###############
@@ -319,19 +330,16 @@ if __name__ == "__main__":
         print("  - saving to {}".format(variables['params']['path']))
         pkl.dump(variables['params']['var'],open(variables['params']['path'],"wb"))
 
-    maxlen = maxlen if opt.max_sequence_length == -1 else opt.max_sequence_length
-    print("max_sequence_length = {}".format(maxlen))
+    tr_loader = DataLoader(TupleLoader(variables['train']['path'], maxlen=opt.maxlen), batch_size=opt.batch_size, collate_fn=collate_fn, shuffle=True, num_workers=opt.nthreads, pin_memory=True)
+    te_loader = DataLoader(TupleLoader(variables['test']['path'], maxlen=opt.maxlen), batch_size=opt.batch_size, collate_fn=collate_fn,  shuffle=False, num_workers=opt.nthreads, pin_memory=False)
     
-    tr_loader = DataLoader(TupleLoader(variables['train']['path'], maxlen=maxlen), batch_size=opt.batch_size, shuffle=True, num_workers=opt.nthreads, pin_memory=True)
-    te_loader = DataLoader(TupleLoader(variables['test']['path'], maxlen=maxlen), batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=False)
-
     # select cpu or gpu
     device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
     list_metrics = ['accuracy', 'pres_0', 'pres_1', 'recall_0', 'recall_1']
 
 
     print("Creating model...")
-    net = Model(n_classes=n_classes, n_layers=opt.n_layers, embedding_max_index=n_tokens, max_sequence_length=maxlen,
+    net = Model(n_classes=n_classes, n_layers=opt.n_layers, embedding_max_index=n_tokens, max_sequence_length=longuest_sequence,
                 embedding_dim=opt.embedding_dim, attention_dim=opt.attention_dim, n_heads=opt.n_heads, dropout=opt.dropout, position_wise_hidden_size=2048)
 
     criterion = torch.nn.CrossEntropyLoss()
