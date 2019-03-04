@@ -3,6 +3,7 @@ cd ../../
 
 # base model (GPU ram > 8GB): embedding_dim=512, attention_dim=64, n_heads=8, n_layers=6, dropout=0.1, n_warmup_step=4000, batch_size=64
 # big model (GPU ram > ?): embedding_dim=1024, attention_dim=64, n_heads=16, n_layers=6, dropout=0.1, n_warmup_step=4000, batch_size=64
+# beware when max_sequence_length=-1, it will pad to the longest sequence which can be very long and cause GPU memory error
 
 dataset="ag_news"
 
@@ -13,7 +14,7 @@ embedding_dim=10
 attention_dim=64
 n_heads=1
 n_layers=1
-max_sequence_length=-1 # longest sequence will be calculated on training set
+max_sequence_length=500 # longest sequence will be calculated on training set
 dropout=0.1
 n_warmup_step=4000
 batch_size=64
