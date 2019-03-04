@@ -190,7 +190,7 @@ class Model(nn.Module):
         self.word_emb = nn.Embedding(self.embedding_max_index + 1, self.embedding_dim, padding_idx=0)
 
         self.pos_emb = nn.Embedding.from_pretrained(get_sinusoid_encoding_table(self.max_sequence_length + 1, self.embedding_dim, padding_idx=0),freeze=True)
-        
+
 
         self.layers = []
         for _ in range(n_layers):
@@ -198,7 +198,8 @@ class Model(nn.Module):
                                             n_head=self.n_heads, d_k=self.attention_dim, d_v=self.attention_dim, dropout=self.dropout))
         self.layers = nn.ModuleList(self.layers)
 
-        self.classification_layer = nn.Linear(self.max_sequence_length * self.embedding_dim, self.n_classes)
+        self.pooling = nn.AdaptiveAvgPool1d(1)
+        self.classification_layer = nn.Linear(self.embedding_dim, self.n_classes)
 
     def forward(self, batch_sequence, batch_position):
     
@@ -214,7 +215,7 @@ class Model(nn.Module):
         for layer in self.layers:
             enc_output, enc_self_attn = layer(enc_output, non_pad_mask=non_pad_mask, slf_attn_mask=slf_attn_mask) # [batch_size, seq_len, emb_dim]
         
-        enc_output = enc_output.view(len(batch_sequence), -1)
-        output = self.classification_layer(enc_output)
-
+        enc_output = enc_output.permute(0, 2, 1) # [batch_size, emb_dim, seq_len]
+        output = self.pooling(enc_output).squeeze(-1) # [batch_size, emb_dim]
+        output = self.classification_layer(output) # [batch_size, n_classes]
         return output
