@@ -505,7 +505,7 @@ if __name__ == "__main__":
         'yelp_polarity',
         'amazon_review',
         'amazon_polarity',
-        'sogu_news',
+        'sogou_news',
         'yahoo_answer',
     ]
 
