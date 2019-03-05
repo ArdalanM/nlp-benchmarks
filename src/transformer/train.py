@@ -273,7 +273,7 @@ if __name__ == "__main__":
 
         print("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
         
-        prepro = Preprocessing()
+        prepro = Preprocessing(lowercase=True)
         vecto = Vectorizer()
         
         ################ 
