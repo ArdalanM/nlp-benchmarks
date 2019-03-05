@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-@author: Yu-Hsiang Huang 
+@author: Yu-Hsiang Huang (source: https://github.com/jadore801120/attention-is-all-you-need-pytorch)
          Ardalan MEHRANI <ardalan77400@gmail.com>
 """
 
