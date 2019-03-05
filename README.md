@@ -17,8 +17,13 @@
 ## Models:
  - [1]: **CNN**: Character-level convolutional networks for text classification ([paper](https://arxiv.org/abs/1509.01626)) 
  - [2]: **VDCNN**: Very deep convolutional networks for text classification ([paper](https://arxiv.org/abs/1606.01781))
+<<<<<<< HEAD
  - [3]: **HAN**: Hierarchical Attention Networks for Document Classification ([paper](https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf)), all credits goes to [@cedias](https://github.com/cedias/Hierarchical-Sentiment)
 - [4]: **Transformer Encoder**: Attention Is All You Need (encoder part) ([paper](https://arxiv.org/abs/1706.03762)), credits to Yu-Hsiang Huang's [work](https://github.com/jadore801120/attention-is-all-you-need-pytorch))
+=======
+ - [3]: **HAN**: Hierarchical Attention Networks for Document Classification ([paper](https://www.cs.cmu.edu/~diyiy/docs/naacl16.pdf)), all credits goes to [@cedias](https://github.com/cedias/Hierarchical-Sentiment))
+- [4]: **Transformer Encoder**: Attention Is All You Need (encoder part) ([paper](https://arxiv.org/abs/1706.03762)), inspired from Yu-Hsiang Huang's work ([here](https://github.com/jadore801120/attention-is-all-you-need-pytorch))
+>>>>>>> 32efb00ed58d86bb18e0318b54e469d6cab0c04c
 
 HAN word (red) and sentence (blue) attention weight at prediction:
 
