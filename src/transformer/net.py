@@ -190,7 +190,8 @@ class Model(nn.Module):
         self.word_emb = nn.Embedding(self.embedding_max_index + 1, self.embedding_dim, padding_idx=0)
 
         self.pos_emb = nn.Embedding.from_pretrained(get_sinusoid_encoding_table(self.max_sequence_length + 1, self.embedding_dim, padding_idx=0),freeze=True)
-
+        
+        self.dropout_layer = nn.Dropout(self.dropout)
 
         self.layers = []
         for _ in range(n_layers):
@@ -211,11 +212,14 @@ class Model(nn.Module):
 
         # positional encoding
         enc_output = self.word_emb(batch_sequence) + self.pos_emb(batch_position) # [batch_size, seq_len, emb_dim]
-            
+        enc_output = self.dropout_layer(enc_output)
+
         for layer in self.layers:
             enc_output, enc_self_attn = layer(enc_output, non_pad_mask=non_pad_mask, slf_attn_mask=slf_attn_mask) # [batch_size, seq_len, emb_dim]
         
         enc_output = enc_output.permute(0, 2, 1) # [batch_size, emb_dim, seq_len]
+        
         output = self.pooling(enc_output).squeeze(-1) # [batch_size, emb_dim]
+        output = self.dropout_layer(output)
         output = self.classification_layer(output) # [batch_size, n_classes]
         return output
