@@ -22,9 +22,9 @@ from torch.utils.data import DataLoader, Dataset
 
 
 # multiprocessing workaround
-# import resource
-# rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
-# resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
+import resource
+rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
 
 from src.datasets import load_datasets
 from src.transformer.net import TransformerCls
@@ -36,12 +36,12 @@ def get_args():
     parser.add_argument("--dataset", type=str, default='imdb')
     parser.add_argument("--data_folder", type=str, default="datasets/imdb/transformer")
     parser.add_argument("--model_folder", type=str, default="models/transformer/imdb")
-    parser.add_argument("--attention_dim", type=int, default=128, help="")
+    parser.add_argument("--attention_dim", type=int, default=64, help="")
     parser.add_argument("--n_heads", type=int, default=4, help="")
     parser.add_argument("--n_layers", type=int, default=4, help="")
-    parser.add_argument("--maxlen", type=int, default=500, help="truncate longer sequence while training")
+    parser.add_argument("--maxlen", type=int, default=200, help="truncate longer sequence while training")
     parser.add_argument("--dropout", type=float, default=0.1, help="")
-    parser.add_argument("--n_warmup_step", type=int, default=400, help="")
+    parser.add_argument("--n_warmup_step", type=int, default=100, help="")
     parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--snapshot_interval", type=int, default=10, help="Save model every n epoch")
@@ -340,7 +340,7 @@ if __name__ == "__main__":
                          n_layer=opt.n_layers)
 
     criterion = torch.nn.CrossEntropyLoss()
-    # torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
+    torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
     net.to(device)
 
     optimizer = ScheduledOptim(torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), betas=(0.9, 0.98), eps=1e-09),opt.attention_dim,opt.n_warmup_step)
