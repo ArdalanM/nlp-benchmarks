@@ -5,3 +5,4 @@ torch
 torchvision
 requests
 tqdm
+lmdb
