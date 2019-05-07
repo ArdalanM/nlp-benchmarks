@@ -39,13 +39,13 @@ def get_args():
     parser.add_argument("--attention_dim", type=int, default=64, help="")
     parser.add_argument("--n_heads", type=int, default=4, help="")
     parser.add_argument("--n_layers", type=int, default=4, help="")
-    parser.add_argument("--maxlen", type=int, default=200, help="truncate longer sequence while training")
+    parser.add_argument("--maxlen", type=int, default=1000, help="truncate longer sequence while training")
     parser.add_argument("--dropout", type=float, default=0.1, help="")
-    parser.add_argument("--n_warmup_step", type=int, default=100, help="")
-    parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
+    parser.add_argument("--n_warmup_step", type=int, default=1000, help="")
+    parser.add_argument("--batch_size", type=int, default=8, help="number of example read by the gpu")
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--snapshot_interval", type=int, default=10, help="Save model every n epoch")
-    parser.add_argument('--gpuid', type=int, default=1, help="select gpu indice (default = -1 = no gpu used")
+    parser.add_argument('--gpuid', type=int, default=0, help="select gpu indice (default = -1 = no gpu used")
     parser.add_argument('--nthreads', type=int, default=8, help="number of cpu threads")
     args = parser.parse_args()
     return args
@@ -228,7 +228,6 @@ if __name__ == "__main__":
 
     opt = get_args()
     
-
     os.makedirs(opt.model_folder, exist_ok=True)
     os.makedirs(opt.data_folder, exist_ok=True)
 
@@ -257,11 +256,15 @@ if __name__ == "__main__":
 
     else:
         print("Creating datasets")
-        tr_sentences = [txt for txt, lab in tqdm(dataset.load_train_data(), desc="counting train samples")]
-        te_sentences = [txt for txt, lab in tqdm(dataset.load_test_data(), desc="counting test samples")]
-            
-        n_tr_samples = len(tr_sentences)
-        n_te_samples = len(te_sentences)
+        tr_examples = [(txt,lab) for txt, lab in tqdm(dataset.load_train_data(), desc="counting train samples")]
+        te_examples = [(txt,lab) for txt, lab in tqdm(dataset.load_test_data(), desc="counting test samples")]
+        
+        print("Sorting by lenght to speed up training")
+        tr_examples = sorted(tr_examples, key=lambda r: len(r[0]))
+        te_examples = sorted(te_examples, key=lambda r: len(r[0]))
+
+        n_tr_samples = len(tr_examples)
+        n_te_samples = len(te_examples)
 
         print("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
         
@@ -271,17 +274,15 @@ if __name__ == "__main__":
         ################ 
         # fit on train #
         ################
-        for sentence, label in tqdm(dataset.load_train_data(), desc="fit on train...", total= n_tr_samples):    
+        for sentence, label in tqdm(tr_examples, desc="fit on train...", total=n_tr_samples):    
             vecto.partial_fit(prepro.transform(sentence))
 
-        del tr_sentences
-        del te_sentences
         ###################
         # transform train #
         ###################
         with lmdb.open(variables['train']['path'], map_size=1099511627776) as env:
             with env.begin(write=True) as txn:
-                for i, (sentence, label) in enumerate(tqdm(dataset.load_train_data(), desc="transform train...", total= n_tr_samples)):
+                for i, (sentence, label) in enumerate(tqdm(tr_examples, desc="transform train...", total= n_tr_samples)):
 
                     xtxt = vecto.transform(prepro.transform(sentence))
                     lab = label
@@ -299,7 +300,7 @@ if __name__ == "__main__":
         ##################
         with lmdb.open(variables['test']['path'], map_size=1099511627776) as env:
             with env.begin(write=True) as txn:
-                for i, (sentence, label) in enumerate(tqdm(dataset.load_test_data(), desc="transform test...", total= n_te_samples)):
+                for i, (sentence, label) in enumerate(tqdm(te_examples, desc="transform test...", total= n_te_samples)):
 
                     xtxt = vecto.transform(prepro.transform(sentence))
                     lab = label
