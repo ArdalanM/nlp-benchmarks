@@ -71,7 +71,7 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 17 layers |98.02           | 98.15          |
 | VDCNN 29 layers |98.71           |                |
 | HAN             |                |   **99.0**     |
-|                 |                |                |
+| Transformer     |                |   98.7       |
 
 
 ### Yelp polarity
