@@ -60,6 +60,7 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 17 layers |     96.49      |                |
 | VDCNN 29 layers |    **96.64**     | 87.90          |
 | HAN             |                |   **96.**       |
+| Transformer     |                |   95.6       |
 
 
 ### DBpedia
