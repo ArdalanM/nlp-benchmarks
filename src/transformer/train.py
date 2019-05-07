@@ -10,8 +10,10 @@ import lmdb
 import argparse
 import numpy as np
 import pickle as pkl
+
 from tqdm import tqdm
-from sklearn import utils, metrics
+from sklearn import metrics
+from pprint import pprint
 
 import torch
 import torch.nn as nn
@@ -25,23 +27,22 @@ rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
 
 from src.datasets import load_datasets
-from src.transformer.net import Model
+from src.transformer.net import TransformerCls
 from src.transformer.lib import Preprocessing, Vectorizer, list_to_bytes, list_from_bytes
 
 
 def get_args():
     parser = argparse.ArgumentParser("""paper: Attention Is All You Need (https://arxiv.org/abs/1706.03762)""")
-    parser.add_argument("--dataset", type=str, default='ag_news')
-    parser.add_argument("--data_folder", type=str, default="datasets/ag_news/transformer")
-    parser.add_argument("--model_folder", type=str, default="models/transformer/ag_news")
-    parser.add_argument("--embedding_dim", type=int, default=128, help="")
+    parser.add_argument("--dataset", type=str, default='imdb')
+    parser.add_argument("--data_folder", type=str, default="datasets/imdb/transformer")
+    parser.add_argument("--model_folder", type=str, default="models/transformer/imdb")
     parser.add_argument("--attention_dim", type=int, default=64, help="")
     parser.add_argument("--n_heads", type=int, default=4, help="")
-    parser.add_argument("--n_layers", type=int, default=6, help="")
-    parser.add_argument("--maxlen", type=int, default=1000, help="truncate longer sequence while training")
+    parser.add_argument("--n_layers", type=int, default=4, help="")
+    parser.add_argument("--maxlen", type=int, default=200, help="truncate longer sequence while training")
     parser.add_argument("--dropout", type=float, default=0.1, help="")
-    parser.add_argument("--n_warmup_step", type=int, default=4000, help="")
-    parser.add_argument("--batch_size", type=int, default=64, help="number of example read by the gpu")
+    parser.add_argument("--n_warmup_step", type=int, default=100, help="")
+    parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--snapshot_interval", type=int, default=10, help="Save model every n epoch")
     parser.add_argument('--gpuid', type=int, default=1, help="select gpu indice (default = -1 = no gpu used")
@@ -96,9 +97,9 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
     cm = np.zeros((nclasses,nclasses), dtype=int)
 
     with tqdm(total=len(dataset),desc="Epoch {} - {}".format(epoch, msg)) as pbar:
-        for iteration, (tx,tidx,ty) in enumerate(dataset):
+        for iteration, (tx,mask,ty) in enumerate(dataset):
 
-            data = (tx,tidx,ty)
+            data = (tx,mask,ty)
             data = [x.to(device) for x in data]
 
             if optimize:
@@ -158,46 +159,35 @@ def save(net, txt_dict, path):
 
 def collate_fn(l):
     
-    Xs, idxs, y = zip(*l)
-    maxlen = max(map(len, Xs))
-    Xs = [np.pad(x, (0, maxlen-len(x)), 'constant') for x in Xs]
-    idxs = [np.pad(idx, (0, maxlen-len(idx)), 'constant') for idx in idxs]
+    sequence, labels = zip(*l)
+    local_maxlen = max(map(len, sequence))
 
+    Xs = [np.pad(x, (0, local_maxlen-len(x)), 'constant') for x in sequence]
     tx = torch.LongTensor(Xs)
-    tidx = torch.LongTensor(idxs)
-    ty = torch.LongTensor(y)
-    
-    return tx,tidx,ty
+    tx_mask = tx.ne(0).unsqueeze(-2)
+    ty = torch.LongTensor(labels) 
+    return tx, tx_mask, ty
 
 
 class TupleLoader(Dataset):
 
-    def __init__(self, path="", maxlen=1000):
+    def __init__(self, path=""):
         self.path = path
         self.env = lmdb.open(path, readonly=True, lock=False, readahead=False, meminit=False)
         self.txn = self.env.begin(write=False)
-        self.maxlen = maxlen
 
     def __len__(self):
         return list_from_bytes(self.txn.get('nsamples'.encode()))[0]
 
     def __getitem__(self, i):
-
         """
         i: int
         xtxt: np.array([maxlen])
-        xidx = np.array([maxlen])
         """
-
         xtxt = list_from_bytes(self.txn.get(('txt-%09d' % i).encode()), np.int)
         lab = list_from_bytes(self.txn.get(('lab-%09d' % i).encode()), np.int)[0]
-        
-        xtxt = xtxt[:self.maxlen]
-                
-        # getting position index of each word 
-        xidx = np.array([idx+1 if w != 0 else 0 for idx, w in enumerate(xtxt)])
-        
-        return xtxt, xidx, lab
+        xtxt = xtxt[:opt.maxlen]
+        return xtxt, lab
 
 
 class ScheduledOptim():
@@ -237,11 +227,13 @@ class ScheduledOptim():
 if __name__ == "__main__":
 
     opt = get_args()
+    
 
     os.makedirs(opt.model_folder, exist_ok=True)
     os.makedirs(opt.data_folder, exist_ok=True)
 
-    print("parameters: {}".format(vars(opt)))
+    print("parameters:")
+    pprint(vars(opt))
 
     dataset = load_datasets(names=[opt.dataset])[0]
     dataset_name = dataset.__class__.__name__
@@ -330,8 +322,8 @@ if __name__ == "__main__":
         print("  - saving to {}".format(variables['params']['path']))
         pkl.dump(variables['params']['var'],open(variables['params']['path'],"wb"))
 
-    tr_loader = DataLoader(TupleLoader(variables['train']['path'], maxlen=opt.maxlen), batch_size=opt.batch_size, collate_fn=collate_fn, shuffle=True, num_workers=opt.nthreads, pin_memory=True)
-    te_loader = DataLoader(TupleLoader(variables['test']['path'], maxlen=opt.maxlen), batch_size=opt.batch_size, collate_fn=collate_fn,  shuffle=False, num_workers=opt.nthreads, pin_memory=False)
+    tr_loader = DataLoader(TupleLoader(variables['train']['path']), batch_size=opt.batch_size, collate_fn=collate_fn, shuffle=True, num_workers=opt.nthreads, pin_memory=True)
+    te_loader = DataLoader(TupleLoader(variables['test']['path']), batch_size=opt.batch_size, collate_fn=collate_fn,  shuffle=False, num_workers=opt.nthreads, pin_memory=False)
     
     # select cpu or gpu
     device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
@@ -339,15 +331,19 @@ if __name__ == "__main__":
 
 
     print("Creating model...")
-    net = Model(n_classes=n_classes, n_layers=opt.n_layers, embedding_max_index=n_tokens, max_sequence_length=longuest_sequence,
-                embedding_dim=opt.embedding_dim, attention_dim=opt.attention_dim, n_heads=opt.n_heads, dropout=opt.dropout, position_wise_hidden_size=2048)
+    net = TransformerCls(nclasses=n_classes,
+                         src_vocab_size=n_tokens,
+                         h=opt.n_heads,
+                         d_model=opt.attention_dim,
+                         d_ff=2048,
+                         dropout=opt.dropout,
+                         n_layer=opt.n_layers)
 
     criterion = torch.nn.CrossEntropyLoss()
     torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
     net.to(device)
 
-    optimizer = ScheduledOptim(torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()),
-                               betas=(0.9, 0.98), eps=1e-09),opt.embedding_dim, opt.n_warmup_step)
+    optimizer = ScheduledOptim(torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), betas=(0.9, 0.98), eps=1e-09),opt.attention_dim,opt.n_warmup_step)
 
 
     for epoch in range(1, opt.epochs + 1):

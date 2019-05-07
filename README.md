@@ -48,7 +48,7 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 17 layers |  90.61         |  90.00         |
 | VDCNN 29 layers |  **91.27**     |     90.43      |
 | HAN             |                |      **92.4**  |
-| Transformer     |                |     91.7       |
+| Transformer     |                |     **92.4**       |
 
 
 
@@ -60,6 +60,7 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 17 layers |     96.49      |                |
 | VDCNN 29 layers |    **96.64**     | 87.90          |
 | HAN             |                |   **96.**       |
+| Transformer     |                |   95.6       |
 
 
 ### DBpedia
@@ -70,7 +71,7 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 17 layers |98.02           | 98.15          |
 | VDCNN 29 layers |98.71           |                |
 | HAN             |                |   **99.0**     |
-|                 |                |                |
+| Transformer     |                |   98.7       |
 
 
 ### Yelp polarity

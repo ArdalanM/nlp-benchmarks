@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 cd ../../
 
-dataset="imdb"
+# base model (GPU ram > 8GB): embedding_dim=512, attention_dim=64, n_heads=8, n_layers=6, dropout=0.1, n_warmup_step=4000, batch_size=64
+# big model (GPU ram > ?): embedding_dim=1024, attention_dim=64, n_heads=16, n_layers=6, dropout=0.1, n_warmup_step=4000, batch_size=64
+# beware when max_sequence_length=-1, it will pad to the longest sequence which can be very long and cause GPU memory error
+
+dataset="yelp_review"
 
 data_folder="datasets/${dataset}/transformer"
 model_folder="models/transformer/${dataset}"
-attention_dim=16
+attention_dim=512
 n_heads=4
-n_layers=2
-maxlen=400 # longest sequence will be calculated on training set
-dropout=0.2
+n_layers=4
+maxlen=250 # maxlen = 1001, meanlen = 135 word, stdlen = 121 words
+dropout=0.1
 n_warmup_step=4000
-batch_size=64
+batch_size=32
 epochs=100
 snapshot_interval=5
 gpuid=1

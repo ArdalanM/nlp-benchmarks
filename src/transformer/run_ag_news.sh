@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 cd ../../
 
-dataset="imdb"
+dataset="ag_news"
 
 data_folder="datasets/${dataset}/transformer"
 model_folder="models/transformer/${dataset}"
-attention_dim=16
+attention_dim=32
 n_heads=4
-n_layers=2
-maxlen=400 # longest sequence will be calculated on training set
-dropout=0.2
-n_warmup_step=4000
-batch_size=64
-epochs=100
+n_layers=4
+maxlen=137 # longest sequence
+dropout=0.1
+n_warmup_step=500
+batch_size=128
+epochs=2
 snapshot_interval=5
 gpuid=1
 nthreads=6

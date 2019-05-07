@@ -1,225 +1,503 @@
 # -*- coding: utf-8 -*-
 """
-@author: Yu-Hsiang Huang (source: https://github.com/jadore801120/attention-is-all-you-need-pytorch)
-         Ardalan MEHRANI <ardalan77400@gmail.com>
+@author: Ardalan MEHRANI <ardalan77400@gmail.com>
 """
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math, copy, time
+from torch.autograd import Variable
+from torch.nn import CrossEntropyLoss
 
 
-def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):
-    ''' Sinusoid position encoding table '''
-
-    def cal_angle(position, hid_idx):
-        return position / np.power(10000, 2 * (hid_idx // 2) / d_hid)
-
-    def get_posi_angle_vec(position):
-        return [cal_angle(position, hid_j) for hid_j in range(d_hid)]
-
-    sinusoid_table = np.array([get_posi_angle_vec(pos_i) for pos_i in range(n_position)])
-
-    sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
-    sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
-
-    if padding_idx is not None:
-        # zero vector for padding dimension
-        sinusoid_table[padding_idx] = 0.
-
-    return torch.FloatTensor(sinusoid_table)
+def clones(module, N):
+    "Produce N identical layers."
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
-def get_non_pad_mask(seq):
-    assert seq.dim() == 2
-    return seq.ne(0).type(torch.float).unsqueeze(-1)
-
-
-def get_attn_key_pad_mask(seq_k, seq_q, masking_value=0):
-    ''' For masking out the padding part of key sequence. '''
-
-    # Expand to fit the shape of key query attention matrix.
-    len_q = seq_q.size(1)
-    padding_mask = seq_k.eq(masking_value) # [batch_size, len_seq_k]
-    padding_mask = padding_mask.unsqueeze(1).expand(-1, len_q, -1)  # [batch_size, len_seq_q, len_seq_k]
-
-    return padding_mask
-
-
-class ScaledDotProductAttention(nn.Module):
-    ''' Scaled Dot-Product Attention '''
-
-    def __init__(self, temperature, attn_dropout=0.1):
-        super().__init__()
-        self.temperature = temperature
-        self.dropout = nn.Dropout(attn_dropout)
-        self.softmax = nn.Softmax(dim=2)
-
-    def forward(self, q, k, v, mask=None):
-
-        attn = torch.bmm(q, k.transpose(1, 2))
-        attn = attn / self.temperature
-
-        if mask is not None:
-            attn = attn.masked_fill(mask, -np.inf)
-
-        attn = self.softmax(attn)
-        attn = self.dropout(attn)
-        output = torch.bmm(attn, v)
-
-        return output, attn
-
-
-class MultiHeadAttention(nn.Module):
-    ''' Multi-Head Attention module '''
-
-    def __init__(self, n_head, d_model, d_k, d_v, dropout=0.1):
-        super().__init__()
-
-        self.n_head = n_head
-        self.d_k = d_k
-        self.d_v = d_v
-
-        self.w_qs = nn.Linear(d_model, n_head * d_k)
-        self.w_ks = nn.Linear(d_model, n_head * d_k)
-        self.w_vs = nn.Linear(d_model, n_head * d_v)
-        nn.init.normal_(self.w_qs.weight, mean=0, std=np.sqrt(2.0 / (d_model + d_k)))
-        nn.init.normal_(self.w_ks.weight, mean=0, std=np.sqrt(2.0 / (d_model + d_k)))
-        nn.init.normal_(self.w_vs.weight, mean=0, std=np.sqrt(2.0 / (d_model + d_v)))
-
-        self.attention = ScaledDotProductAttention(temperature=np.power(d_k, 0.5))
-        self.layer_norm = nn.LayerNorm(d_model)
-
-        self.fc = nn.Linear(n_head * d_v, d_model)
-        nn.init.xavier_normal_(self.fc.weight)
-
-        self.dropout = nn.Dropout(dropout)
-
-
-    def forward(self, q, k, v, mask=None):
+class MultiHeadedAttention(nn.Module):
+    def __init__(self, h, d_model, dropout=0.1):
+        "Take in model size and number of heads."
+        super(MultiHeadedAttention, self).__init__()
+        assert d_model % h == 0
+        # We assume d_v always equals d_k
+        self.d_k = d_model // h
+        self.h = h
+        self.linears = clones(nn.Linear(d_model, d_model), 4)
+        self.attn = None
+        self.dropout = nn.Dropout(p=dropout)
         
-        # q=k=v for nlp tasks 
-        # q: [batch_size, seq_len_q, embedding_dim]
-        # k: [batch_size, seq_len_k, embedding_dim]
-        # v: [batch_size, seq_len_v, embedding_dim]
+    def attention(self, query, key, value, mask=None, dropout=None):
+        "Compute 'Scaled Dot Product Attention'"
+        d_k = query.size(-1)
+        scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, -1e9)
+        p_attn = F.softmax(scores, dim = -1)
+        if dropout is not None:
+            p_attn = dropout(p_attn)
+        return torch.matmul(p_attn, value), p_attn
 
-        # mask: # [batch_size, len_seq_q, len_seq_k]
-        d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
-
-        batch_size, len_q, _ = q.size()
-        batch_size, len_k, _ = k.size()
-        batch_size, len_v, _ = v.size()
-
-        residual = q
-
-        q = self.w_qs(q).view(batch_size, len_q, n_head, d_k) # [batch_size, len_q, n_head, d_k]
-        k = self.w_ks(k).view(batch_size, len_k, n_head, d_k) # [batch_size, len_k, n_head, d_k]
-        v = self.w_vs(v).view(batch_size, len_v, n_head, d_v) # [batch_size, len_v, n_head, d_v]
-
-        q = q.permute(2, 0, 1, 3).contiguous().view(-1, len_q, d_k) # [n_head * batch_size, len_q, d_k]
-        k = k.permute(2, 0, 1, 3).contiguous().view(-1, len_k, d_k) # [n_head * batch_size, len_k, d_k]
-        v = v.permute(2, 0, 1, 3).contiguous().view(-1, len_v, d_v) # [n_head * batch_size, len_v, d_v]
-
-        mask = mask.repeat(n_head, 1, 1) # [n_head * batch_size, seq_len_q, seq_len_k]
-        output, attn = self.attention(q, k, v, mask=mask) # [n_head * batch_size, seq_len_q, d_v], [n_head * batch_size, seq_len_q, seq_len_q]
-
-        output = output.view(n_head, batch_size, len_q, d_v) # [n_head, batch_size, seq_len_q, d_v]
-        output = output.permute(1, 2, 0, 3).contiguous().view(batch_size, len_q, -1) # [batch_size, seq_len_q, n_head * d_v]
-
-        output = self.dropout(self.fc(output))
-        output = self.layer_norm(output + residual)
-
-        return output, attn
+    def forward(self, query, key, value, mask=None):
+        "Implements Figure 2"
+        if mask is not None:
+            # Same mask applied to all h heads.
+            mask = mask.unsqueeze(1)
+        nbatches = query.size(0)
+        
+        # 1) Do all the linear projections in batch from d_model => h x d_k 
+        query, key, value = [l(x).view(nbatches, -1, self.h, self.d_k).transpose(1, 2) for l, x in zip(self.linears, (query, key, value))]
+        
+        # 2) Apply attention on all the projected vectors in batch. 
+        x, self.attn = self.attention(query, key, value, mask=mask, dropout=self.dropout)
+        
+        # 3) "Concat" using a view and apply a final linear. 
+        x = x.transpose(1, 2).contiguous().view(nbatches, -1, self.h * self.d_k)
+        return self.linears[-1](x)
 
 
 class PositionwiseFeedForward(nn.Module):
-    ''' A two-feed-forward-layer module '''
-
-    def __init__(self, d_in, d_hid, dropout=0.1):
-        super().__init__()
-        self.w_1 = nn.Conv1d(d_in, d_hid, 1) # position-wise
-        self.w_2 = nn.Conv1d(d_hid, d_in, 1) # position-wise
-        self.layer_norm = nn.LayerNorm(d_in)
+    "Implements FFN equation."
+    def __init__(self, d_model, d_ff, dropout=0.1):
+        super(PositionwiseFeedForward, self).__init__()
+        self.w_1 = nn.Linear(d_model, d_ff)
+        self.w_2 = nn.Linear(d_ff, d_model)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        residual = x
-        output = x.transpose(1, 2)
-        output = self.w_2(F.relu(self.w_1(output)))
-        output = output.transpose(1, 2)
-        output = self.dropout(output)
-        output = self.layer_norm(output + residual)
-        return output
+        return self.w_2(self.dropout(F.relu(self.w_1(x))))
+
+
+class Embeddings(nn.Module):
+    def __init__(self, d_model, vocab):
+        super(Embeddings, self).__init__()
+        self.lut = nn.Embedding(vocab, d_model)
+        self.d_model = d_model
+
+    def forward(self, x):
+        return self.lut(x) * math.sqrt(self.d_model)
+
+
+class PositionalEncoding(nn.Module):
+    "Implement the PE function."
+    def __init__(self, d_model, dropout, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+        
+        # Compute the positional encodings once in log space.
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0., max_len).unsqueeze(1)
+        div_term = torch.arange(0., d_model, 2) * -(math.log(10000.0) / d_model)
+        div_term = torch.exp(div_term)
+        
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
+        self.register_buffer('pe', pe)
+        
+    def forward(self, x):
+        x = x + Variable(self.pe[:, :x.size(1)],  requires_grad=False)
+        return self.dropout(x)
+
+
+class LayerNorm(nn.Module):
+    "Construct a layernorm module (See citation for details)."
+    def __init__(self, features, eps=1e-6):
+        super(LayerNorm, self).__init__()
+        self.a_2 = nn.Parameter(torch.ones(features))
+        self.b_2 = nn.Parameter(torch.zeros(features))
+        self.eps = eps
+
+    def forward(self, x):
+        mean = x.mean(-1, keepdim=True)
+        std = x.std(-1, keepdim=True)
+        return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
 
 
 class EncoderLayer(nn.Module):
-    ''' Compose with two layers '''
-
-    def __init__(self, d_model, d_inner, n_head, d_k, d_v, dropout=0.1):
-        super(EncoderLayer, self).__init__()
-        self.slf_attn = MultiHeadAttention(n_head, d_model, d_k, d_v, dropout=dropout)
-        self.pos_ffn = PositionwiseFeedForward(d_model, d_inner, dropout=dropout)
-
-    def forward(self, enc_input, non_pad_mask=None, slf_attn_mask=None):
-        enc_output, enc_slf_attn = self.slf_attn(enc_input, enc_input, enc_input, mask=slf_attn_mask) # [batch_size, seq_len, emb_dim]
-        enc_output *= non_pad_mask
-
-        enc_output = self.pos_ffn(enc_output)
-        enc_output *= non_pad_mask
-
-        return enc_output, enc_slf_attn
-
-
-class Model(nn.Module):
-
-    def __init__(self,n_classes=2, n_layers=3, max_sequence_length=200, embedding_max_index=2000, embedding_dim=100,
-                 attention_dim=64, n_heads=10, dropout=0.1, position_wise_hidden_size=2048):
-        super().__init__()
-
-        self.n_classes = n_classes
-        self.n_layers = n_layers
-        self.max_sequence_length = max_sequence_length
-        self.embedding_dim = embedding_dim
-        self.embedding_max_index = embedding_max_index
-        self.attention_dim = attention_dim
-        self.n_heads = n_heads
-        self.dropout = dropout
-        self.position_wise_hidden_size = position_wise_hidden_size
-
-        self.word_emb = nn.Embedding(self.embedding_max_index + 1, self.embedding_dim, padding_idx=0)
-
-        self.pos_emb = nn.Embedding.from_pretrained(get_sinusoid_encoding_table(self.max_sequence_length + 1, self.embedding_dim, padding_idx=0),freeze=True)
-        
-        self.dropout_layer = nn.Dropout(self.dropout)
-
-        self.layers = []
-        for _ in range(n_layers):
-            self.layers.append(EncoderLayer(d_model=self.embedding_dim, d_inner=self.position_wise_hidden_size,
-                                            n_head=self.n_heads, d_k=self.attention_dim, d_v=self.attention_dim, dropout=self.dropout))
-        self.layers = nn.ModuleList(self.layers)
-
-        self.pooling = nn.AdaptiveAvgPool1d(1)
-        self.classification_layer = nn.Linear(self.embedding_dim, self.n_classes)
-
-    def forward(self, batch_sequence, batch_position):
     
-        # mask padded tokens
-        slf_attn_mask = get_attn_key_pad_mask(batch_sequence, batch_sequence, masking_value=0) # [batch_size, seq_len_q, seq_len_q] 
+    "Encoder is made up of self-attn and feed forward (defined below)"
+    
+    def __init__(self, h, d_model, d_ff, dropout=0.1):
+        super(EncoderLayer, self).__init__()
         
-        # mask existing tokens
-        non_pad_mask = get_non_pad_mask(batch_sequence) # [batch_size, seq_len, embedding_dim]
+        self.d = dropout
+        self.self_attn = MultiHeadedAttention(h, d_model, dropout)
+        self.feed_forward = PositionwiseFeedForward(d_model, d_ff, dropout)
 
-        # positional encoding
-        enc_output = self.word_emb(batch_sequence) + self.pos_emb(batch_position) # [batch_size, seq_len, emb_dim]
-        enc_output = self.dropout_layer(enc_output)
+        self.n1 = LayerNorm(d_model)
+        self.n2 = LayerNorm(d_model)
+
+    def forward(self, x, mask):
+        "Follow Figure 1 (left) for connections."
+
+        attn_output = self.self_attn(self.n1(x), self.n1(x), self.n1(x), mask)
+        attn_output = F.dropout(attn_output, self.d)
+        attn_output = x + attn_output
+
+        enc_output = self.feed_forward(self.n2(attn_output))
+        enc_output = F.dropout(enc_output, self.d)
+        enc_output = attn_output + enc_output
+
+        return enc_output
+
+
+class Encoders(nn.Module):
+    
+    "Encoder is made up of self-attn and feed forward (defined below)"
+    
+    def __init__(self, vocab_size, h, d_model, d_ff, dropout=0.1, n_layer=2):
+        super(Encoders, self).__init__()
+        self.pe = PositionalEncoding(d_model, dropout, max_len=5000) # arbitrary big max_len
+        self.emb = Embeddings(d_model, vocab_size)
+        self.layers = clones(EncoderLayer(h, d_model, d_ff, dropout), n_layer)
+        self.norm = LayerNorm(d_model)
+
+    def forward(self, src, src_mask):
+        "Follow Figure 1 (left) for connections."
+
+        x = self.pe(self.emb(src))
 
         for layer in self.layers:
-            enc_output, enc_self_attn = layer(enc_output, non_pad_mask=non_pad_mask, slf_attn_mask=slf_attn_mask) # [batch_size, seq_len, emb_dim]
+            x = layer(x, src_mask)
+        return self.norm(x)
+
+
+class DecoderLayer(nn.Module):
+    def __init__(self, h, d_model, d_ff, dropout=0.1):
+        super(DecoderLayer, self).__init__()
+        self.d = dropout
+        self.dec_attn = MultiHeadedAttention(h, d_model, dropout)
+        self.enc_attn = MultiHeadedAttention(h, d_model, dropout)
+        self.feed_forward = PositionwiseFeedForward(d_model, d_ff, dropout)
+        self.n1 = LayerNorm(d_model) 
+        self.n2 = LayerNorm(d_model) 
+        self.n3 = LayerNorm(d_model) 
         
-        enc_output = enc_output.permute(0, 2, 1) # [batch_size, emb_dim, seq_len]
+    def forward(self, x, enc_output, src_mask, tgt_mask):
         
-        output = self.pooling(enc_output).squeeze(-1) # [batch_size, emb_dim]
-        output = self.dropout_layer(output)
-        output = self.classification_layer(output) # [batch_size, n_classes]
-        return output
+
+        # attention over target words + residual connection
+        attn_output = self.dec_attn(self.n1(x), self.n1(x), self.n1(x), tgt_mask)
+        attn_output = F.dropout(attn_output, self.d)
+        attn_output = attn_output + x
+
+        # attention between target words and source words + residual connection
+        attn_input = self.enc_attn(self.n2(attn_output), self.n2(enc_output), self.n2(enc_output), src_mask)
+        attn_input = F.dropout(attn_input, self.d)
+        attn_input = attn_input + attn_output
+
+        dec_output = self.feed_forward(self.n3(attn_input))
+        dec_output = F.dropout(dec_output, self.d)
+        dec_output = dec_output + attn_input    
+
+        return dec_output
+
+
+class Decoders(nn.Module):
+    def __init__(self, vocab_size, h, d_model, d_ff, dropout=0.1, n_layer=2):
+        super(Decoders, self).__init__()
+
+        self.pe = PositionalEncoding(d_model, dropout, max_len=5000) # arbitrary big max_len
+        self.emb = Embeddings(d_model, vocab_size)
+        self.decoder_layers = clones(DecoderLayer(h, d_model, d_ff, dropout), n_layer)
+        self.norm = LayerNorm(d_model)
+    
+    def forward(self, src, enc_output, src_mask, tgt_mask):
+        
+        x = self.pe(self.emb(src))
+
+        for layer in self.decoder_layers:
+            x = layer(x, enc_output, src_mask, tgt_mask)
+        return self.norm(x)
+
+
+class SequenceClsHead(nn.Module):
+
+    def __init__(self, input_dim, output_dim):
+        super(SequenceClsHead, self).__init__()
+        self.proj = nn.Linear(input_dim, output_dim)
+
+    def forward(self, x):
+        return self.proj(x)
+
+
+class ClsHead(nn.Module):
+
+    def __init__(self, input_dim, num_labels):
+        super(ClsHead, self).__init__()
+        self.proj = nn.Linear(input_dim, input_dim)
+        self.proj1 = nn.Linear(input_dim, num_labels)
+
+    def forward(self, x):
+        #     # We "pool" the model by simply taking the hidden state corresponding
+        #     # to the first token. We assume that this has been pre-trained
+        out = x[:, 0]
+
+        out = torch.tanh(self.proj(out))
+        out = self.proj1(out)
+        return out
+
+
+class TransformerLM(nn.Module):
+
+    def __init__(self, src_vocab_size, trg_vocab_size, h, d_model, d_ff, dropout=0.1, n_layer=1):
+        super(TransformerLM, self).__init__()
+        self.encoders = Encoders(src_vocab_size, h, d_model, d_ff, dropout=dropout, n_layer=n_layer)
+        self.decoders = Decoders(trg_vocab_size, h, d_model, d_ff, dropout=dropout, n_layer=n_layer)
+        self.classification = SequenceClsHead(d_model, trg_vocab_size)
+
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+    def forward(self, src, tgt, src_mask, tgt_mask):
+
+        enc_output = self.encoders(src, src_mask)
+        dec_output = self.decoders(tgt, enc_output, src_mask, tgt_mask)
+        out = self.classification(dec_output)
+        return out
+
+
+class TransformerCls(nn.Module):
+
+    def __init__(self, nclasses, src_vocab_size, h, d_model, d_ff, dropout=0.1, n_layer=1):
+        super(TransformerCls, self).__init__()
+        self.encoders = Encoders(src_vocab_size, h, d_model, d_ff, dropout=dropout, n_layer=n_layer)
+        self.classification = ClsHead(d_model, nclasses)
+
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+    def forward(self, src, src_mask):
+
+        enc_output = self.encoders(src, src_mask)
+        out = self.classification(enc_output)
+        return out
+
+
+class Batch:
+    "Object for holding a batch of data with mask during training."
+    def __init__(self, src, trg=None, pad=0, device=None):
+
+        self.src = src.to(device)
+        self.src_mask = src.ne(pad).unsqueeze(-2).to(device)
+        self.device = device
+
+        if trg is not None:
+
+            self.trg = trg.to(device)
+            if trg.dim() > 1:
+                self.trg = trg[:, :-1].to(device)
+                self.trg_y = trg[:, 1:].to(device)
+                self.trg_mask = self.make_std_mask(self.trg, pad)
+                self.ntokens = (self.trg_y != pad).data.sum().to(device)
+
+    @staticmethod  
+    def make_std_mask(tgt, pad):
+        "Create a mask to hide padding and future words."
+        tgt_mask = tgt.ne(pad).unsqueeze(1)
+        next_word_mask = subsequent_mask(tgt.size(-1)).to(tgt_mask.device)
+        tgt_mask = tgt_mask & next_word_mask
+        return tgt_mask
+
+
+def subsequent_mask(size):
+    "Mask out subsequent positions."
+    attn_shape = (size, size)
+    subsequent_mask = torch.triu(torch.ones(attn_shape), diagonal=1)
+    return subsequent_mask.eq(0)
+
+
+def data_gen_binary_classification(batch_size, nbatches, device, vocab_size):
+    "Generate random data for a src-tgt copy task."
+    seq_length = 100
+    thresh = (seq_length * vocab_size) // 2
+    for i in range(nbatches):
+        tx = torch.from_numpy(np.random.randint(1, vocab_size, size=(batch_size, seq_length)))
+        ty = (tx.sum(-1) > thresh).type_as(tx.data)
+        yield Batch(tx, ty, 0, device=device)
+
+
+def data_gen_sequence(vocab_size, batch, nbatches, device):
+    "Generate random data for a src-tgt copy task."
+    for i in range(nbatches):
+        data = torch.randint(1, vocab_size, size=(batch, 10))
+        data[:, 0] = 1
+        yield Batch(data, data, 0, device=device)
+
+
+def greedy_decode(model, src, src_mask, max_len, start_symbol):
+    memory = model.encode(src, src_mask)
+    ys = torch.ones(1, 1).fill_(start_symbol).type_as(src.data)
+    for i in range(max_len-1):
+        out = model.decode(memory, src_mask,  Variable(ys), Variable(subsequent_mask(ys.size(1)).type_as(src.data)))
+        prob = model.generator(out[:, -1])
+        _, next_word = torch.max(prob, dim = 1)
+        next_word = next_word.data[0]
+        ys = torch.cat([ys, 
+                        torch.ones(1, 1).type_as(src.data).fill_(next_word)], dim=1)
+    return ys
+
+
+class NoamOpt:
+    "Optim wrapper that implements rate."
+    def __init__(self, model_size, factor, warmup, optimizer):
+        self.optimizer = optimizer
+        self._step = 0
+        self.warmup = warmup
+        self.factor = factor
+        self.model_size = model_size
+        self._rate = 0
+        
+    def step(self):
+        "Update parameters and rate"
+        self._step += 1
+        rate = self.rate()
+        for p in self.optimizer.param_groups:
+            p['lr'] = rate
+        self._rate = rate
+        self.optimizer.step()
+        
+    def rate(self, step = None):
+        "Implement `lrate` above"
+        if step is None:
+            step = self._step
+        return self.factor * (self.model_size ** (-0.5) * min(step ** (-0.5), step * self.warmup ** (-1.5)))
+        
+
+class SmoothLoss(nn.Module):
+    "Implement label smoothing."
+    def __init__(self, nclasses=None, padding_idx=0, smoothing=0.0):
+        super(SmoothLoss, self).__init__()
+        self.criterion = nn.KLDivLoss(reduction='sum')
+        self.padding_idx = padding_idx
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+        self.nclasses = nclasses
+        
+    def forward(self, ty_prob, ty_true):
+        assert ty_true.size(0) == ty_prob.size(0)
+
+        if self.smoothing > 0:
+
+            nclasses = self.nclasses or ty_prob.size(1)
+
+            ty_true_oh = torch.zeros_like(ty_prob).fill_(self.smoothing / (nclasses - 2))
+            ty_true_oh.scatter_(1, ty_true.data.unsqueeze(1), self.confidence)
+            mask = torch.nonzero(ty_true == self.padding_idx)
+            if mask.numel() > 0:
+                ty_true_oh.index_fill_(0, mask.squeeze(), 0.0)
+            loss = self.criterion(ty_prob, Variable(ty_true_oh, requires_grad=False))
+        else:
+            loss = F.cross_entropy(ty_prob, ty_true, ignore_index=self.padding_idx, reduction='sum')
+
+        return loss
+
+
+def test_train_tranformer_lm():
+
+    from types import SimpleNamespace
+    opt = SimpleNamespace(d_model=32, N=2, d_ff=1024, h=8, dropout=0.1, vocab_size=11, batch_size=128, n_batches=1000, gpuid=1)
+    device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
+    
+    gen = data_gen_sequence(opt.vocab_size, opt.vocab_size, opt.n_batches, device)
+    # ntokens = int(batch.ntokens)
+
+    model = TransformerLM(opt.vocab_size, opt.vocab_size, opt.h, opt.d_model, opt.d_ff, dropout=opt.dropout, n_layer=opt.N)
+    optimizer = NoamOpt(model.encoders.emb.d_model, 1, 400, torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+    criterion = SmoothLoss(nclasses, padding_idx=0, smoothing=0)
+
+    model.to(device)
+    criterion.to(device)
+
+    n_iter = 1000
+    for i in range(n_iter):
+        try:
+            batch = next(gen)
+        except:
+            gen = data_gen(nclasses, batch_size, opt.n_batches, device)
+            batch = next(gen)
+
+        ty_prob = model(batch.src, batch.trg, batch.src_mask, batch.trg_mask)
+        ty_prob_reshaped = ty_prob.contiguous().view(-1, ty_prob.size(-1))
+        
+        ty_true = batch.trg_y
+        ty_true_reshaped = ty_true.contiguous().view(-1)
+
+        loss = criterion(ty_prob_reshaped, ty_true_reshaped)
+        loss.backward()
+        optimizer.step()
+        optimizer.optimizer.zero_grad()
+        acc = (ty_prob_reshaped.argmax(-1) == ty_true_reshaped).float().mean()
+
+        if i > 0 and i % 50 == 1:
+            print(i, acc.cpu().numpy(), loss.detach().cpu().numpy() / batch.ntokens.cpu().numpy())
+
+    # prediction
+    model.eval()
+    max_len=10
+
+    src = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10]]).to(device)
+    src_mask = torch.ones(1, 1, src.size(1)).to(device)
+    # print(greedy_decode(model, src, src_mask, max_len=10, start_symbol=1))
+
+    memory = model.encoders(src, src_mask)
+    ys = torch.ones(1, 1).type_as(src.data).to(device)
+    trg_mask = subsequent_mask(ys.size(1)).type_as(src.data).to(device)
+
+    for i in range(max_len-1):
+        dec_output = model.decoders(ys, memory, src_mask, trg_mask)
+        prob = model.classification(dec_output[:, -1])
+        _, next_word = torch.max(prob, dim = 1)
+        next_word = next_word.data[0]
+        ys = torch.cat([ys, torch.ones(1, 1).type_as(src.data).fill_(next_word)], dim=1)
+    
+    print("input: {}".format(src))
+    print("prediction: {}".format(ys))
+
+
+def test_train_tranformer_cls():
+
+    from types import SimpleNamespace
+    opt = SimpleNamespace(nclasses=2, d_model=32, N=2, d_ff=1024, h=8, dropout=0.1, vocab_size=1000, batch_size=128, n_batches=1000, gpuid=1)
+    device = torch.device("cuda:{}".format(gpuid) if gpuid >= 0 else "cpu")
+
+    model = TransformerCls(nclasses, vocab_size, h, d_model, d_ff, dropout=dropout, n_layer=N)
+    # optimizer = NoamOpt(model.encoders.emb.d_model, 1, 400, torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=0.0001)
+    criterion = CrossEntropyLoss()
+
+    model.to(device)
+    criterion.to(device)
+
+    n_iter = 1000
+    gen = data_gen_binary_classification(batch_size, n_batches, device, vocab_size)
+    for i in range(n_iter):
+        try:
+            batch = next(gen)
+        except:
+            gen = data_gen_binary_classification(batch_size, n_batches, device, vocab_size)
+            batch = next(gen)
+
+        out = model(batch.src, batch.src_mask)
+        ty_true = batch.trg
+
+        loss = criterion(out, ty_true)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        acc = (out.argmax(-1) == ty_true).sum().item() / ty_true.size(0)
+
+        if i > 0 and i % 50 == 1:
+            print("iter: {}, acc: {}, loss: {}".format(i, acc, loss.item()))
+
+
+if __name__ == "__main__":
+    test_train_tranformer_lm()
+    test_train_tranformer_cls
+
+
