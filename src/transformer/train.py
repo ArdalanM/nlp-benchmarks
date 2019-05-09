@@ -41,12 +41,13 @@ def get_args():
     parser.add_argument("--n_layers", type=int, default=4, help="")
     parser.add_argument("--maxlen", type=int, default=1000, help="truncate longer sequence while training")
     parser.add_argument("--dropout", type=float, default=0.1, help="")
-    parser.add_argument("--n_warmup_step", type=int, default=1000, help="")
-    parser.add_argument("--batch_size", type=int, default=8, help="number of example read by the gpu")
-    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--n_warmup_step", type=int, default=1000, help="scheduling optimizer warmup step. set to -1 for regular adam optimizer")
+    parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
+    parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--snapshot_interval", type=int, default=10, help="Save model every n epoch")
-    parser.add_argument('--gpuid', type=int, default=0, help="select gpu indice (default = -1 = no gpu used")
+    parser.add_argument('--gpuid', type=int, default=0, help="select gpu index. -1 to select cpu")
     parser.add_argument('--nthreads', type=int, default=8, help="number of cpu threads")
+    parser.add_argument('--use-all-gpu', default=False, action='store_true')
     args = parser.parse_args()
     return args
 
@@ -118,13 +119,15 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
             loss =  criterion(out, data[2]) 
             epoch_loss += loss.item()
             dic_metrics['logloss'] = epoch_loss/(iteration+1)
-
-            if optimize:
-                dic_metrics['lr'] = optimizer._optimizer.state_dict()['param_groups'][0]['lr']
-
+            
             if optimize:
                 loss.backward()
-                optimizer.step_and_update_lr()
+                if optimizer.__class__.__name__ == "ScheduledOptim":
+                    optimizer.step_and_update_lr()
+                    dic_metrics['lr'] = optimizer._optimizer.state_dict()['param_groups'][0]['lr']
+                else:
+                    optimizer.step()
+                    dic_metrics['lr'] = optimizer.state_dict()['param_groups'][0]['lr']
                 
             pbar.update(1)
             pbar.set_postfix(dic_metrics)
@@ -342,10 +345,17 @@ if __name__ == "__main__":
 
     criterion = torch.nn.CrossEntropyLoss()
     torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
+    if opt.use_all_gpu:
+        print("Using all gpus")
+        net = nn.DataParallel(net)
+    
     net.to(device)
 
-    optimizer = ScheduledOptim(torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), betas=(0.9, 0.98), eps=1e-09),opt.attention_dim,opt.n_warmup_step)
-
+    if opt.n_warmup_step > 0:
+        optimizer = ScheduledOptim(torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), betas=(0.9, 0.98), eps=1e-09),opt.attention_dim,opt.n_warmup_step)
+    else:
+        optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()))
+    print(optimizer)
 
     for epoch in range(1, opt.epochs + 1):
         train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, criterion=criterion)
