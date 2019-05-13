@@ -5,13 +5,13 @@ dataset="imdb"
 
 data_folder="datasets/${dataset}/transformer"
 model_folder="models/transformer/${dataset}"
-attention_dim=16
+attention_dim=32
 n_heads=4
 n_layers=4
 maxlen=500 # longest sequence
 dropout=0.1
-n_warmup_step=1000
-batch_size=16
+n_warmup_step=4000
+batch_size=32
 epochs=2
 snapshot_interval=5
 gpuid=0
@@ -31,4 +31,5 @@ python -m src.transformer.train --dataset ${dataset} \
                                  --snapshot_interval ${snapshot_interval} \
                                  --gpuid ${gpuid} \
                                  --nthreads ${nthreads} \
+                                 --use-all-gpu
 
