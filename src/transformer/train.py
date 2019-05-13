@@ -263,8 +263,8 @@ if __name__ == "__main__":
         te_examples = [(txt,lab) for txt, lab in tqdm(dataset.load_test_data(), desc="counting test samples")]
         
         print("Sorting by lenght to speed up training")
-        tr_examples = sorted(tr_examples, key=lambda r: len(r[0]))
-        te_examples = sorted(te_examples, key=lambda r: len(r[0]))
+        tr_examples = sorted(tr_examples, key=lambda r: len(r[0]), reverse=True)
+        te_examples = sorted(te_examples, key=lambda r: len(r[0]), reverse=True)
 
         n_tr_samples = len(tr_examples)
         n_te_samples = len(te_examples)
