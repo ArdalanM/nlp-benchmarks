@@ -44,7 +44,9 @@ def get_args():
     parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.0001)
+    parser.add_argument("--max_grad_norm", type=float, default=None, help="gradient clipping")
     parser.add_argument("--lr_halve_interval", type=int, default=-1, help="Number of iterations before halving learning rate")
+    parser.add_argument('--curriculum', default=False, action='store_true', help="curriculum learning, sort training set by lenght")
     parser.add_argument("--gamma", type=float, default=0.1, help="learning halving facor")
     parser.add_argument("--snapshot_interval", type=int, default=2, help="Save model every n epoch")
     parser.add_argument('--gpuid', type=int, default=1, help="select gpu indice (default = -1 = no gpu used")
@@ -194,6 +196,12 @@ if __name__ == "__main__":
         tr_sentences = [txt for txt, lab in tqdm(dataset.load_train_data(), desc="counting train samples")]
         te_sentences = [txt for txt, lab in tqdm(dataset.load_test_data(), desc="counting test samples")]
             
+        if opt.curriculum:
+            print("Sorting by length to speed up training")
+            tr_sentences = sorted(tr_sentences, key=lambda s: len(s), reverse=False)
+            te_sentences = sorted(te_sentences, key=lambda s: len(s), reverse=False)
+        
+        print("shortest sequence: {}, longest sequence: {}".format(len(tr_sentences[0]), len(tr_sentences[-1])))
         n_tr_samples = len(tr_sentences)
         n_te_samples = len(te_sentences)
 
@@ -271,10 +279,12 @@ if __name__ == "__main__":
 
     print("Creating model...")
     net = HAN(num_class=n_classes, ntoken=n_tokens, emb_size=200, hid_size=50)
-
-    criterion = torch.nn.CrossEntropyLoss()
-    torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
     net.to(device)
+    
+    criterion = torch.nn.CrossEntropyLoss()
+
+    if opt.max_grad_norm:
+        torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
 
     if opt.solver_type == 'sgd':
         print(" - optimizer: sgd")
