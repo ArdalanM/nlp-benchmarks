@@ -37,7 +37,7 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 17 layers |                |                |
 | VDCNN 29 layers |                |                |
 | HAN             |                |    **90.5**    |
-| Transformer     |                |     87.5       |
+| Transformer     |                |     88.6       |
 
 
 ### Ag news 
