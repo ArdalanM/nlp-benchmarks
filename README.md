@@ -47,8 +47,8 @@ Results are reported as follows:  (i) / (ii)
 | VDCNN 9 layers  |    90.17       |  89.22         |
 | VDCNN 17 layers |  90.61         |  90.00         |
 | VDCNN 29 layers |  **91.27**     |     90.43      |
-| HAN             |                |      **92.4**  |
-| Transformer     |                |     **92.4**   |
+| HAN             |                |      92.4      |
+| Transformer     |                |     **92.8**   |
 
 
 
@@ -58,9 +58,9 @@ Results are reported as follows:  (i) / (ii)
 | CNN small       |   91.35        |   93.53        |
 | VDCNN 9 layers  |    96.42       |   93.50        |
 | VDCNN 17 layers |     96.49      |                |
-| VDCNN 29 layers |    **96.64**     | 87.90          |
-| HAN             |                |   **96.**       |
-| Transformer     |                |   95.6       |
+| VDCNN 29 layers |    **96.64**   | 87.90          |
+| HAN             |                |   **96.**      |
+| Transformer     |                |   95.6         |
 
 
 ### DBpedia
