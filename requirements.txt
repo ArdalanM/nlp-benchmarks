@@ -6,5 +6,3 @@ torchvision
 requests
 tqdm
 lmdb
-tensorflow
-tensorboardX
