@@ -86,9 +86,8 @@ class Embeddings(nn.Module):
 
 class PositionalEncoding(nn.Module):
     "Implement the PE function."
-    def __init__(self, d_model, dropout, max_len=5000):
+    def __init__(self, d_model, max_len=5000):
         super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
         
         # Compute the positional encodings once in log space.
         pe = torch.zeros(max_len, d_model)
@@ -103,7 +102,7 @@ class PositionalEncoding(nn.Module):
         
     def forward(self, x):
         x = x + Variable(self.pe[:, :x.size(1)],  requires_grad=False)
-        return self.dropout(x)
+        return x
 
 
 class LayerNorm(nn.Module):
@@ -154,15 +153,16 @@ class Encoders(nn.Module):
     
     def __init__(self, vocab_size, h, d_model, d_ff, dropout=0.1, n_layer=2):
         super(Encoders, self).__init__()
-        self.pe = PositionalEncoding(d_model, dropout, max_len=5000) # arbitrary big max_len
+        self.pe = PositionalEncoding(d_model, max_len=5000) # arbitrary big max_len
         self.emb = Embeddings(d_model, vocab_size)
         self.layers = clones(EncoderLayer(h, d_model, d_ff, dropout), n_layer)
         self.norm = LayerNorm(d_model)
+        self.drop = nn.Dropout(p=dropout)
 
     def forward(self, src, src_mask):
         "Follow Figure 1 (left) for connections."
 
-        x = self.pe(self.emb(src))
+        x = self.drop(self.pe(self.emb(src)))
 
         for layer in self.layers:
             x = layer(x, src_mask)
@@ -204,14 +204,15 @@ class Decoders(nn.Module):
     def __init__(self, vocab_size, h, d_model, d_ff, dropout=0.1, n_layer=2):
         super(Decoders, self).__init__()
 
-        self.pe = PositionalEncoding(d_model, dropout, max_len=5000) # arbitrary big max_len
+        self.pe = PositionalEncoding(d_model, max_len=5000) # arbitrary big max_len
         self.emb = Embeddings(d_model, vocab_size)
         self.decoder_layers = clones(DecoderLayer(h, d_model, d_ff, dropout), n_layer)
         self.norm = LayerNorm(d_model)
+        self.drop = nn.Dropout(p=dropout)
     
     def forward(self, src, enc_output, src_mask, tgt_mask):
         
-        x = self.pe(self.emb(src))
+        x = self.drop(self.pe(self.emb(src)))
 
         for layer in self.decoder_layers:
             x = layer(x, enc_output, src_mask, tgt_mask)
