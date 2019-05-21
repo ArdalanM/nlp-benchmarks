@@ -17,9 +17,7 @@ from pprint import pprint
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
-
 
 # multiprocessing workaround
 import resource
@@ -33,15 +31,29 @@ from src.transformer.lib import Preprocessing, Vectorizer, list_to_bytes, list_f
 
 def get_args():
     parser = argparse.ArgumentParser("""paper: Attention Is All You Need (https://arxiv.org/abs/1706.03762)""")
-    parser.add_argument("--dataset", type=str, default='imdb')
-    parser.add_argument("--data_folder", type=str, default="datasets/imdb/transformer")
-    parser.add_argument("--model_folder", type=str, default="models/transformer/imdb")
+    parser.add_argument("--dataset", type=str, default='ag_news')
+    parser.add_argument("--data_folder", type=str, default="datasets/ag_news/transformer")
+    parser.add_argument("--model_folder", type=str, default="models/transformer/ag_news")
+    
+    # preprocessing
+    parser.add_argument("--word_min_count", type=int, default=5, help="")
+    parser.add_argument('--curriculum', default=False, action='store_true', help="curriculum learning, sort training set by lenght")
+
+    #model
     parser.add_argument("--attention_dim", type=int, default=64, help="")
     parser.add_argument("--n_heads", type=int, default=4, help="")
     parser.add_argument("--n_layers", type=int, default=4, help="")
-    parser.add_argument("--maxlen", type=int, default=1000, help="truncate longer sequence while training")
+    parser.add_argument("--maxlen", type=int, default=224, help="truncate longer sequence while training")
     parser.add_argument("--dropout", type=float, default=0.1, help="")
+    parser.add_argument("--ff_hidden_size", type=int, default=2048, help="point wise feed forward nn")
+
+    #optimizer
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--weight_decay", type=float, default=0.)
     parser.add_argument("--n_warmup_step", type=int, default=1000, help="scheduling optimizer warmup step. set to -1 for regular adam optimizer")
+    parser.add_argument("--max_grad_norm", type=float, default=None, help="gradient clipping")
+
+    # training    
     parser.add_argument("--batch_size", type=int, default=32, help="number of example read by the gpu")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--snapshot_interval", type=int, default=10, help="Save model every n epoch")
@@ -52,50 +64,14 @@ def get_args():
     return args
 
 
-def get_metrics(cm, list_metrics):
-    """Compute metrics from a confusion matrix (cm)
-    cm: sklearn confusion matrix
-    returns:
-    dict: {metric_name: score}
-
-    """
-    dic_metrics = {}
-    total = np.sum(cm)
-
-    if 'accuracy' in list_metrics:
-        out = np.sum(np.diag(cm))
-        dic_metrics['accuracy'] = out/total
-
-    if 'pres_0' in list_metrics:
-        num = cm[0, 0]
-        den = cm[:, 0].sum()
-        dic_metrics['pres_0'] =  num/den if den > 0 else 0
-
-    if 'pres_1' in list_metrics:
-        num = cm[1, 1]
-        den = cm[:, 1].sum()
-        dic_metrics['pres_1'] = num/den if den > 0 else 0
-
-    if 'recall_0' in list_metrics:
-        num = cm[0, 0]
-        den = cm[0, :].sum()
-        dic_metrics['recall_0'] = num/den if den > 0 else 0
-
-    if 'recall_1' in list_metrics:
-        num = cm[1, 1]
-        den = cm[1, :].sum()
-        dic_metrics['recall_1'] =  num/den if den > 0 else 0
-
-    return dic_metrics
-
-
 def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,criterion=None):
     
     net.train() if optimize else net.eval()
 
     epoch_loss = 0
+    epoch_acc = 0
+    dic_metrics= {'loss':0, 'acc':0, 'lr':0}
     nclasses = len(list(net.parameters())[-1])
-    cm = np.zeros((nclasses,nclasses), dtype=int)
 
     with tqdm(total=len(dataset),desc="Epoch {} - {}".format(epoch, msg)) as pbar:
         for iteration, (tx,mask,ty) in enumerate(dataset):
@@ -107,18 +83,14 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
                 optimizer.zero_grad()
 
             out = net(data[0],data[1])
-            ty_prob = F.softmax(out, 1) # probabilites
+            loss =  criterion(out, data[2])
 
             #metrics
-            y_true = ty.detach().cpu().numpy()
-            y_pred = ty_prob.max(1)[1].cpu().numpy()
-
-            cm += metrics.confusion_matrix(y_true, y_pred, labels=range(nclasses))
-            dic_metrics = get_metrics(cm, list_metrics)
-            
-            loss =  criterion(out, data[2]) 
             epoch_loss += loss.item()
-            dic_metrics['logloss'] = epoch_loss/(iteration+1)
+            epoch_acc += (data[-1] == out.argmax(-1)).sum().item() / len(out)
+
+            dic_metrics['loss'] = epoch_loss/(iteration+1)
+            dic_metrics['acc'] = epoch_acc/(iteration+1)
             
             if optimize:
                 loss.backward()
@@ -131,24 +103,6 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
                 
             pbar.update(1)
             pbar.set_postfix(dic_metrics)
-
-
-def predict(net,dataset,device,msg="prediction"):
-    
-    net.eval()
-
-    y_probs, y_trues = [], []
-
-    for iteration, (batch_t,r_t,sent_order,ls,lr,review) in tqdm(enumerate(dataset), total=len(dataset), desc="{}".format(msg)):
-
-        data = (batch_t,r_t,sent_order)
-        data = [x.to(device) for x in data]
-        out = net(data[0],data[2],ls,lr)
-        ty_prob = F.softmax(out, 1) # probabilites
-        y_probs.append(ty_prob.detach().cpu().numpy())
-        y_trues.append(r_t.detach().cpu().numpy())
-
-    return np.concatenate(y_probs, 0), np.concatenate(y_trues, 0).reshape(-1, 1)
 
 
 def save(net, txt_dict, path):
@@ -262,17 +216,18 @@ if __name__ == "__main__":
         tr_examples = [(txt,lab) for txt, lab in tqdm(dataset.load_train_data(), desc="counting train samples")]
         te_examples = [(txt,lab) for txt, lab in tqdm(dataset.load_test_data(), desc="counting test samples")]
         
-        print("Sorting by lenght to speed up training")
-        tr_examples = sorted(tr_examples, key=lambda r: len(r[0]), reverse=True)
-        te_examples = sorted(te_examples, key=lambda r: len(r[0]), reverse=True)
+        if opt.curriculum:
+            print(" - curriculum: sorting by sentence length")
+            tr_examples = sorted(tr_examples, key=lambda r: len(r[0]), reverse=False)
+            te_examples = sorted(te_examples, key=lambda r: len(r[0]), reverse=False)
 
         n_tr_samples = len(tr_examples)
         n_te_samples = len(te_examples)
-
-        print("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
+        print(" - shortest sequence: {}, longest sequence: {}".format(len(tr_examples[0][0]), len(tr_examples[-1][0])))
+        print(" - [{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
         
         prepro = Preprocessing(lowercase=True)
-        vecto = Vectorizer()
+        vecto = Vectorizer(min_word_count= opt.word_min_count)
         
         ################ 
         # fit on train #
@@ -331,31 +286,32 @@ if __name__ == "__main__":
     
     # select cpu or gpu
     device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
-    list_metrics = ['accuracy', 'pres_0', 'pres_1', 'recall_0', 'recall_1']
-
 
     print("Creating model...")
     net = TransformerCls(nclasses=n_classes,
                          src_vocab_size=n_tokens,
                          h=opt.n_heads,
                          d_model=opt.attention_dim,
-                         d_ff=2048,
+                         d_ff=opt.ff_hidden_size,
                          dropout=opt.dropout,
                          n_layer=opt.n_layers)
-
-    criterion = torch.nn.CrossEntropyLoss()
-    torch.nn.utils.clip_grad_norm_(net.parameters(), 1)
-    if opt.use_all_gpu:
-        print("Using all gpus")
-        net = nn.DataParallel(net)
-    
     net.to(device)
 
+    if opt.use_all_gpu:
+        print(" - Using all gpus")
+        net = nn.DataParallel(net)
+    
+    if opt.max_grad_norm:
+        print(" - gradient clipping: {}".format(opt.max_grad_norm))
+        torch.nn.utils.clip_grad_norm_(net.parameters(), opt.max_grad_norm)
+    
     if opt.n_warmup_step > 0:
-        optimizer = ScheduledOptim(torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), betas=(0.9, 0.98), eps=1e-09),opt.attention_dim,opt.n_warmup_step)
+        optimizer = ScheduledOptim(torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), betas=(0.9, 0.98), eps=1e-09, lr=opt.lr, weight_decay=opt.weight_decay),opt.attention_dim,opt.n_warmup_step)
     else:
-        optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()))
+        optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), lr=opt.lr, weight_decay=opt.weight_decay)
     print(optimizer)
+
+    criterion = torch.nn.CrossEntropyLoss()
 
     for epoch in range(1, opt.epochs + 1):
         train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, criterion=criterion)
