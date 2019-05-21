@@ -59,15 +59,19 @@ class MultiHeadedAttention(nn.Module):
 
 
 class PositionwiseFeedForward(nn.Module):
-    "Implements FFN equation."
+    ''' A two-feed-forward-layer module '''
+
     def __init__(self, d_model, d_ff, dropout=0.1):
-        super(PositionwiseFeedForward, self).__init__()
-        self.w_1 = nn.Linear(d_model, d_ff)
-        self.w_2 = nn.Linear(d_ff, d_model)
+        super().__init__()
+        self.w_1 = nn.Conv1d(d_model, d_ff, 1) # position-wise
+        self.w_2 = nn.Conv1d(d_ff, d_model, 1) # position-wise
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        return self.w_2(self.dropout(F.relu(self.w_1(x))))
+        output = x.transpose(1, 2)
+        output = self.w_2(F.relu(self.w_1(output)))
+        output = output.transpose(1, 2)
+        return output
 
 
 class Embeddings(nn.Module):
@@ -409,7 +413,7 @@ def test_train_tranformer_lm():
 
     model = TransformerLM(opt.vocab_size, opt.vocab_size, opt.h, opt.d_model, opt.d_ff, dropout=opt.dropout, n_layer=opt.N)
     optimizer = NoamOpt(model.encoders.emb.d_model, 1, 400, torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
-    criterion = SmoothLoss(nclasses, padding_idx=0, smoothing=0)
+    criterion = SmoothLoss(opt.vocab_size, padding_idx=0, smoothing=0)
 
     model.to(device)
     criterion.to(device)
