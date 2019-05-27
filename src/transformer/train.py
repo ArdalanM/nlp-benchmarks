@@ -40,17 +40,20 @@ def get_args():
     parser.add_argument('--curriculum', default=False, action='store_true', help="curriculum learning, sort training set by lenght")
 
     #model
-    parser.add_argument("--attention_dim", type=int, default=64, help="")
-    parser.add_argument("--n_heads", type=int, default=4, help="")
-    parser.add_argument("--n_layers", type=int, default=4, help="")
-    parser.add_argument("--maxlen", type=int, default=224, help="truncate longer sequence while training")
+    parser.add_argument("--attention_dim", type=int, default=16, help="")
+    parser.add_argument("--n_heads", type=int, default=2, help="")
+    parser.add_argument("--n_layers", type=int, default=2, help="")
+    parser.add_argument("--maxlen", type=int, default=20, help="truncate longer sequence while training")
     parser.add_argument("--dropout", type=float, default=0.1, help="")
-    parser.add_argument("--ff_hidden_size", type=int, default=2048, help="point wise feed forward nn")
+    parser.add_argument("--ff_hidden_size", type=int, default=128, help="point wise feed forward nn")
 
     #optimizer
+    parser.add_argument("--opt_name", type=str, default='adam_warmup_linear', choices=['adam', 'adam_warmup_linear'])
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--weight_decay", type=float, default=0.)
     parser.add_argument("--n_warmup_step", type=int, default=1000, help="scheduling optimizer warmup step. set to -1 for regular adam optimizer")
+    parser.add_argument("--gamma", type=float, default=0.9)
+    parser.add_argument("--step_size", type=int, default=1)
     parser.add_argument("--max_grad_norm", type=float, default=None, help="gradient clipping")
 
     # training    
@@ -94,12 +97,8 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
             
             if optimize:
                 loss.backward()
-                if optimizer.__class__.__name__ == "ScheduledOptim":
-                    optimizer.step_and_update_lr()
-                    dic_metrics['lr'] = optimizer._optimizer.state_dict()['param_groups'][0]['lr']
-                else:
-                    optimizer.step()
-                    dic_metrics['lr'] = optimizer.state_dict()['param_groups'][0]['lr']
+                dic_metrics['lr'] = optimizer.state_dict()['param_groups'][0]['lr']
+                optimizer.step()
                 
             pbar.update(1)
             pbar.set_postfix(dic_metrics)
@@ -147,38 +146,36 @@ class TupleLoader(Dataset):
         return xtxt, lab
 
 
-class ScheduledOptim():
-    '''A simple wrapper class for learning rate scheduling'''
-
-    def __init__(self, optimizer, d_model, n_warmup_steps):
-        self._optimizer = optimizer
-        self.n_warmup_steps = n_warmup_steps
-        self.n_current_steps = 0
-        self.init_lr = np.power(d_model, -0.5)
-
-    def step_and_update_lr(self):
-        "Step with the inner optimizer"
-        self._update_learning_rate()
-        self._optimizer.step()
-
+class NoamOpt:
+    "Optim wrapper that implements rate."
+    def __init__(self, model_size, factor, warmup, optimizer):
+        self.optimizer = optimizer
+        self._step = 0
+        self.warmup = warmup
+        self.factor = factor
+        self.model_size = model_size
+        self._rate = 0
+    
     def zero_grad(self):
-        "Zero out the gradients by the inner optimizer"
-        self._optimizer.zero_grad()
+        self.optimizer.zero_grad()
+    
+    def state_dict(self):
+        return self.optimizer.state_dict()
 
-    def _get_lr_scale(self):
-        return np.min([
-            np.power(self.n_current_steps, -0.5),
-            np.power(self.n_warmup_steps, -1.5) * self.n_current_steps])
-
-    def _update_learning_rate(self):
-        ''' Learning rate scheduling per step '''
-
-        self.n_current_steps += 1
-        lr = self.init_lr * self._get_lr_scale()
-
-        for param_group in self._optimizer.param_groups:
-            param_group['lr'] = lr
-
+    def step(self):
+        "Update parameters and rate"
+        self._step += 1
+        rate = self.rate()
+        for p in self.optimizer.param_groups:
+            p['lr'] = rate
+        self._rate = rate
+        self.optimizer.step()
+        
+    def rate(self, step = None):
+        "Implement `lrate` above"
+        if step is None:
+            step = self._step
+        return self.factor * (self.model_size ** (-0.5) * min(step ** (-0.5), step * self.warmup ** (-1.5)))
 
 
 if __name__ == "__main__":
@@ -223,7 +220,7 @@ if __name__ == "__main__":
 
         n_tr_samples = len(tr_examples)
         n_te_samples = len(te_examples)
-        print(" - shortest sequence: {}, longest sequence: {}".format(len(tr_examples[0][0]), len(tr_examples[-1][0])))
+        print(" - shortest sequence: {}, longest sequence: {}".format(len(tr_examples[0][0].split()), len(tr_examples[-1][0].split())))
         print(" - [{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
         
         prepro = Preprocessing(lowercase=True)
@@ -305,17 +302,25 @@ if __name__ == "__main__":
         print(" - gradient clipping: {}".format(opt.max_grad_norm))
         torch.nn.utils.clip_grad_norm_(net.parameters(), opt.max_grad_norm)
     
-    if opt.n_warmup_step > 0:
-        optimizer = ScheduledOptim(torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), betas=(0.9, 0.98), eps=1e-09, lr=opt.lr, weight_decay=opt.weight_decay),opt.attention_dim,opt.n_warmup_step)
-    else:
+    scheduler = None
+    if opt.opt_name == 'adam_warmup_linear':
+        optimizer_ = torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), betas=(0.9, 0.98), eps=1e-09, weight_decay=opt.weight_decay)
+        optimizer = NoamOpt(opt.attention_dim, 1, opt.n_warmup_step, optimizer_)
+    elif opt.opt_name == 'adam':
         optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, net.parameters()), lr=opt.lr, weight_decay=opt.weight_decay)
-    print(optimizer)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, opt.step_size, gamma=opt.gamma, last_epoch=-1)
+    else:
+        raise
+    print(opt.opt_name,optimizer, scheduler)
 
     criterion = torch.nn.CrossEntropyLoss()
 
     for epoch in range(1, opt.epochs + 1):
         train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, criterion=criterion)
         train(epoch,net, te_loader, device, msg="testing ", criterion=criterion)
+        
+        if scheduler:
+            scheduler.step()
 
         if (epoch % opt.snapshot_interval == 0) and (epoch > 0):
             path = "{}/model_epoch_{}".format(opt.model_folder,epoch)

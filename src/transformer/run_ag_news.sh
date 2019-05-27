@@ -15,15 +15,15 @@ word_min_count=5
 attention_dim=64
 n_heads=4
 n_layers=4
-maxlen=225 
+maxlen=102 
 dropout=0.1
 ff_hidden_size=64
 
 # optimizer
-lr=0.001
+opt_name="adam_warmup_linear"
 weight_decay=0.
-n_warmup_step=3000
-max_grad_norm=1
+n_warmup_step=1500
+max_grad_norm=10
 
 # training    
 batch_size=64
@@ -43,7 +43,7 @@ python -m src.transformer.train \
                                  --maxlen ${maxlen} \
                                  --dropout ${dropout} \
                                  --ff_hidden_size ${ff_hidden_size} \
-                                 --lr ${lr} \
+                                 --opt_name ${opt_name} \
                                  --weight_decay ${weight_decay} \
                                  --n_warmup_step ${n_warmup_step} \
                                  --max_grad_norm ${max_grad_norm} \
