@@ -3,6 +3,7 @@
 @author: MEHRANI Ardalan <ardalan77400@gmail.com>
 """
 
+import spacy
 import numpy as np
 from collections import Counter
 
@@ -19,16 +20,15 @@ class Preprocessing():
 
     def __init__(self, lowercase=False):
         self.lowercase = lowercase
-
+        self.nlp = spacy.load("en", disable=["parser", "tagger", "ner"])
+        
     def transform(self, sentence):
         """
         sentences: list(str) 
         output: list(str)
         """
-        if self.lowercase:
-            return sentence.lower().split()
-        else:
-            return sentence.split()
+        tokens = [tok.text.lower() if self.lowercase else tok.text for tok in self.nlp(sentence) ]
+        return tokens
 
 
 class Vectorizer():
@@ -70,3 +70,16 @@ class Vectorizer():
         s = [self.word_dict.get(w, self.word_dict["_unk_"]) for w in l]
         return s
 
+
+if __name__ == "__main__":
+
+
+    import spacy
+    from tqdm import tqdm
+    from src.datasets import load_datasets
+    dataset = load_datasets(names=['db_pedia'])[0]
+    tr_examples = [txt for txt, lab in tqdm(dataset.load_train_data(), desc="counting train samples")]
+
+    nlp = spacy.load("en", disable=["parser", "tagger", "ner"])
+    prepro = Preprocessing() 
+    tokens = [prepro.transform(sentence) for sentence in tqdm(tr_examples, total=len(tr_examples))]
