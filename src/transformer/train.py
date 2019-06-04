@@ -63,6 +63,7 @@ def get_args():
     parser.add_argument('--gpuid', type=int, default=0, help="select gpu index. -1 to select cpu")
     parser.add_argument('--nthreads', type=int, default=8, help="number of cpu threads")
     parser.add_argument('--use-all-gpu', default=False, action='store_true')
+    parser.add_argument("--seed", type=int, default=1337)
     args = parser.parse_args()
     return args
 
@@ -187,6 +188,7 @@ if __name__ == "__main__":
 
     print("parameters:")
     pprint(vars(opt))
+    torch.manual_seed(opt.seed)
 
     dataset = load_datasets(names=[opt.dataset])[0]
     dataset_name = dataset.__class__.__name__

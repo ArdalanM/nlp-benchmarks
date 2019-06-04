@@ -12,12 +12,12 @@ model_folder="models/transformer/${dataset}"
 word_min_count=5
 
 # model
-attention_dim=64
+attention_dim=16
 n_heads=4
 n_layers=4
 maxlen=102 
 dropout=0.1
-ff_hidden_size=64
+ff_hidden_size=16
 
 # optimizer
 opt_name="adam_warmup_linear"
@@ -29,8 +29,9 @@ max_grad_norm=10
 batch_size=64
 epochs=100
 snapshot_interval=10
-gpuid=0
+gpuid=1
 nthreads=4
+seed=1337
 
 python -m src.transformer.train \
                                  --dataset ${dataset} \
@@ -52,5 +53,6 @@ python -m src.transformer.train \
                                  --snapshot_interval ${snapshot_interval} \
                                  --gpuid ${gpuid} \
                                  --nthreads ${nthreads} \
+                                 --seed ${seed} \
                                  --curriculum
 
